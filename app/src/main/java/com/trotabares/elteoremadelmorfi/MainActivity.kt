@@ -1,19 +1,57 @@
 package com.trotabares.elteoremadelmorfi
 
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.os.Bundle
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
+import android.media.MediaPlayer
 import android.view.View
 import android.view.Window
 import kotlin.math.min
 
 class MainActivity : Activity() {
+    private var music: MediaPlayer? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.setBackgroundDrawable(ColorDrawable(Color.WHITE))
         setContentView(MorfiIntroView(this))
+
+        // La música se busca por nombre para que la intro siga compilando
+        // incluso mientras el archivo de audio final se incorpora al proyecto.
+        val musicId = resources.getIdentifier(
+            "el_teorema_del_morfi", "raw", packageName
+        )
+
+        if (musicId != 0) {
+            music = MediaPlayer.create(this, musicId)?.apply {
+                isLooping = true
+                setVolume(0f, 0f)
+                start()
+
+                // Fade-in musical: entra suavemente durante 3,5 segundos.
+                ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = 3500L
+                    startDelay = 800L
+                    addUpdateListener { animator ->
+                        val volume = animator.animatedValue as Float
+                        setVolume(volume, volume)
+                    }
+                    start()
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        music?.let {
+            if (it.isPlaying) it.stop()
+            it.release()
+        }
+        music = null
+        super.onDestroy()
     }
 }
 
@@ -33,7 +71,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         val h = height.toFloat()
         val t = (System.currentTimeMillis() - start) / 1000f
 
-        // 0-2.8: world is drawn; 2.8-7.2: places appear; 7.2+: Matías/title/button.
         val world = ease(t / 2.8f).coerceIn(0f, 1f)
         val places = ease((t - 2.8f) / 2.0f).coerceIn(0f, 1f)
         val matias = ease((t - 4.8f) / 1.2f).coerceIn(0f, 1f)
@@ -42,7 +79,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
 
         c.drawColor(Color.WHITE)
 
-        // Sky, sun and river "draw themselves" vertically.
         val skyBottom = h * (0.48f * world)
         if (skyBottom > 0f) {
             paint.color = Color.rgb(244, 205, 143)
@@ -60,7 +96,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
             c.drawRect(0f, riverTop, w, h, paint)
         }
 
-        // Land strips.
         if (world > .35f) {
             paint.color = Color.rgb(126, 154, 91)
             c.drawRect(0f, h*.43f, w, h*.53f, paint)
@@ -68,7 +103,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
             c.drawRect(0f, h*.50f, w, h, paint)
         }
 
-        // Road grows from horizon toward viewer.
         if (world > .5f) {
             paint.color = Color.rgb(117, 103, 86)
             val p = Path()
@@ -83,7 +117,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
             c.drawPath(p, paint)
         }
 
-        // Wooden pier at the water.
         if (world > .72f) {
             paint.color = Color.rgb(105, 72, 43)
             val y = h*.48f
@@ -91,7 +124,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
             for (i in 0..4) c.drawRect(w*.655f+i*w*.018f, y, w*.665f+i*w*.018f, y+h*.10f, paint)
         }
 
-        // Places appear, rather than being drawn.
         drawPlaces(c, w, h, places)
 
         if (matias > 0f) drawMatias(c, w, h, matias)
@@ -122,33 +154,30 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         }
 
         progress = t
-        if (t < 8.5f) {
-            postInvalidateOnAnimation()
-        }
+        if (t < 8.5f) postInvalidateOnAnimation()
     }
 
     private fun drawPlaces(c: Canvas, w: Float, h: Float, a: Float) {
         if (a <= 0f) return
         fun fade() { paint.alpha=(255*a).toInt() }
-        // Astillero + ship
         fade(); paint.color=Color.rgb(72,72,68)
         c.drawRect(w*.08f,h*.39f,w*.30f,h*.49f,paint)
         paint.color=Color.rgb(201,201,193)
         c.drawRect(w*.19f,h*.32f,w*.25f,h*.39f,paint)
         paint.color=Color.rgb(52,52,50)
         val ship=Path(); ship.moveTo(w*.13f,h*.45f); ship.lineTo(w*.35f,h*.45f); ship.lineTo(w*.31f,h*.48f); ship.lineTo(w*.16f,h*.48f); ship.close(); c.drawPath(ship,paint)
-        // Pizzeria
+
         paint.color=Color.rgb(168,91,54)
         c.drawRect(w*.67f,h*.39f,w*.84f,h*.49f,paint)
         paint.color=Color.rgb(89,57,40)
         val roof=Path(); roof.moveTo(w*.64f,h*.39f); roof.lineTo(w*.755f,h*.33f); roof.lineTo(w*.87f,h*.39f); roof.close(); c.drawPath(roof,paint)
-        // Clinic
+
         paint.color=Color.rgb(221,221,210)
         c.drawRect(w*.42f,h*.40f,w*.53f,h*.48f,paint)
         paint.color=Color.rgb(172,65,65)
         c.drawRect(w*.46f,h*.415f,w*.49f,h*.46f,paint)
         c.drawRect(w*.445f,h*.43f,w*.505f,h*.445f,paint)
-        // School
+
         paint.color=Color.rgb(195,157,101)
         c.drawRect(w*.86f,h*.40f,w*.98f,h*.49f,paint)
         paint.alpha=255
@@ -174,7 +203,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
 
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
         if (event.action == android.view.MotionEvent.ACTION_UP && progress >= 7f) {
-            // Placeholder: next screen will be connected after the intro is validated.
             return true
         }
         return true
