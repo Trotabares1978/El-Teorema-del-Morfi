@@ -1,0 +1,67 @@
+name: Build APK Clean
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Detect Android SDK
+        run: |
+          set -e
+          SDKMANAGER="$(find /usr/local/lib/android /opt/android-sdk /usr/lib/android-sdk -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find /home/runner -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
+          fi
+          test -n "$SDKMANAGER"
+          SDK_ROOT="$(dirname "$(dirname "$(dirname "$(dirname "$SDKMANAGER")")")")"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Prepare Android SDK
+        run: |
+          set -e
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0"
+
+      - name: Download intro audio
+        run: |
+          set -e
+          mkdir -p app/src/main/res/raw
+          curl -fL --retry 3 --output app/src/main/res/raw/el_teorema_del_morfi.mp3 "https://uc6fa69bb65f5e2e1595a3892c42.dl.dropboxusercontent.com/cd/0/get/DIwJU1EDmIwBd168XU_wjoEnexFFvXaiWW565F7_aVCUpPtgrDzq-8VtqpBV4iNshVKTdSchLqepNm8b7_LGd5aYVY5kBF4zeHEpMUUuCfRb9fj5atxbPK_6FmgSjKYiBHjsVanNCL8CwHFL6X0lmLlHi3RzvHfpISnif19S1CqG5g/file?c_luid=e65e5e1e"
+          test -s app/src/main/res/raw/el_teorema_del_morfi.mp3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - name: Verify APK and audio
+        run: |
+          set -e
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -i "el_teorema_del_morfi"
+          echo "APK Y AUDIO OK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: El-Teorema-del-Morfi-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
