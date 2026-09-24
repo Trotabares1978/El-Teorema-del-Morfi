@@ -1,0 +1,23 @@
+name: Runner Trap
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trap:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-24.04, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Captura
+        run: |
+          echo "RUNNER ATRAPADO: $RUNNER_OS"
+          hostname
+          date
