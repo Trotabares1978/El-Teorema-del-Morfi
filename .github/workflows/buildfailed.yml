@@ -1,0 +1,12 @@
+name: BuildFailed
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Registry smoke test
+        run: echo "ACTIONS_REGISTRY_REINDEX_TEST"
