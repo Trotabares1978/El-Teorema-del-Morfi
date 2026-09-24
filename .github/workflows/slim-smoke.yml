@@ -1,8 +1,0 @@
-name: Slim Smoke
-on:
-  push:
-jobs:
-  smoke:
-    runs-on: ubuntu-slim
-    steps:
-      - run: echo SLIM_RUNNER_OK
