@@ -13,6 +13,7 @@ import kotlin.math.min
 
 class MainActivity : Activity() {
     private var music: MediaPlayer? = null
+    private var fadeAnimator: ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,31 +21,45 @@ class MainActivity : Activity() {
         window.setBackgroundDrawable(ColorDrawable(Color.WHITE))
         setContentView(MorfiIntroView(this))
 
-        val musicId = resources.getIdentifier("el_teorema_del_morfi", "raw", packageName)
-        if (musicId != 0) {
-            music = MediaPlayer.create(this, musicId)?.apply {
-                isLooping = true
-                setVolume(0f, 0f)
-                start()
-                ValueAnimator.ofFloat(0f, 1f).apply {
-                    duration = 3500L
-                    startDelay = 800L
-                    addUpdateListener { animator ->
-                        val v = animator.animatedValue as Float
-                        setVolume(v, v)
-                    }
-                    start()
+        music = MediaPlayer.create(this, R.raw.el_teorema_del_morfi)?.apply {
+            isLooping = true
+            setVolume(0f, 0f)
+            start()
+
+            // El fade pertenece al ciclo de vida de la Activity: si la pantalla
+            // muere, cancelamos el animator antes de liberar el MediaPlayer.
+            fadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 3500L
+                startDelay = 800L
+                addUpdateListener { animator ->
+                    val v = animator.animatedValue as Float
+                    music?.setVolume(v, v)
                 }
+                start()
             }
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        music?.let { if (it.isPlaying) it.pause() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        music?.let { if (!it.isPlaying) it.start() }
+    }
+
     override fun onDestroy() {
-        music?.let {
-            if (it.isPlaying) it.stop()
-            it.release()
+        fadeAnimator?.cancel()
+        fadeAnimator = null
+
+        music?.run {
+            if (isPlaying) stop()
+            release()
         }
         music = null
+
         super.onDestroy()
     }
 }
