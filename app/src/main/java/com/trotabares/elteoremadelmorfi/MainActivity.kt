@@ -168,7 +168,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         if (a <= 0f) return
         p.alpha = (255*a).toInt()
 
-        // Astillero.
         p.color = Color.rgb(76, 78, 75)
         c.drawRect(w*.055f, h*.355f, w*.30f, h*.445f, p)
         p.color = Color.rgb(51, 53, 51)
@@ -180,7 +179,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         c.drawLine(w*.18f,h*.28f,w*.28f,h*.34f,p)
         p.style = Paint.Style.FILL
 
-        // Barco.
         p.color = Color.rgb(55, 61, 62)
         path.reset()
         path.moveTo(w*.10f,h*.425f); path.lineTo(w*.335f,h*.425f)
@@ -189,7 +187,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         p.color = Color.rgb(188, 190, 182)
         c.drawRect(w*.205f,h*.355f,w*.245f,h*.425f,p)
 
-        // Pizzería.
         p.color = Color.rgb(164, 91, 55)
         c.drawRect(w*.68f,h*.365f,w*.90f,h*.47f,p)
         p.color = Color.rgb(82, 57, 42)
@@ -204,7 +201,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         drawWindow(c,w*.71f,h*.42f,w*.76f,h*.46f)
         drawWindow(c,w*.81f,h*.42f,w*.86f,h*.46f)
 
-        // Clínica.
         p.color = Color.rgb(226, 224, 213)
         c.drawRect(w*.39f,h*.375f,w*.54f,h*.465f,p)
         p.color = Color.rgb(178, 70, 68)
@@ -213,7 +209,6 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         p.color = Color.rgb(112, 104, 88)
         c.drawRect(w*.40f,h*.365f,w*.53f,h*.378f,p)
 
-        // Escuela.
         p.color = Color.rgb(194, 158, 102)
         c.drawRect(w*.89f,h*.34f,w*.99f,h*.47f,p)
         p.color = Color.rgb(75, 72, 62)
@@ -223,9 +218,9 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         p.alpha = 255
     }
 
-    private fun drawWindow(c: Canvas,w:Float,t:Float,r:Float,b:Float) {
+    private fun drawWindow(c: Canvas, left: Float, top: Float, right: Float, bottom: Float) {
         p.color = Color.rgb(92, 138, 149)
-        c.drawRect(t,r,b,p)
+        c.drawRect(left, top, right, bottom, p)
     }
 
     private fun drawMatias(c: Canvas, w: Float, h: Float, a: Float) {
