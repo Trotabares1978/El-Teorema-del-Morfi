@@ -91,11 +91,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val bg = backgroundBitmap
 
         // Estados completos y acumulativos. Nada se descubre por barridos.
-        val backgroundAmount = fade((t - 0.05f) / 0.70f)
+        val backgroundAmount = fade((t - 0.01f) / 0.32f)
         val roadAmount = fade((t - 0.70f) / 1.20f)
         val placesAmount = fade((t - 1.85f) / 1.45f)
         val matiasAmount = fade((t - 3.25f) / 1.30f)
-        val titleAmount = fade((t - 4.25f) / 1.85f)
+        val titleAmount = fade((t - 4.05f) / 2.35f)
         val enterAmount = fade((t - 5.70f) / 1.20f)
 
         if (backgroundAmount > 0f) {
@@ -110,13 +110,13 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
 
-        val finalAmount = fade((t - 6.75f) / 1.55f)
+        val finalAmount = fade((t - 7.05f) / 1.45f)
         if (finalAmount > 0f) {
             imagePaint.alpha = (255f * finalAmount).toInt()
             c.drawBitmap(bitmap, null, d, imagePaint)
             imagePaint.alpha = 255
         }
-        if (t < 8.60f) postInvalidateOnAnimation()
+        if (t < 8.70f) postInvalidateOnAnimation()
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
@@ -564,7 +564,15 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val s = maxOf(w / bitmap.width, h / bitmap.height)
         val rw = bitmap.width * s
         val rh = bitmap.height * s
-        return RectF((w - rw) / 2f, (h - rh) / 2f, (w + rw) / 2f, (h + rh) / 2f)
+        // Deja margen de seguridad vertical para que el título no quede
+        // debajo del recorte del center-crop.
+        val safeTop = h * 0.035f
+        val safeBottom = h * 0.965f
+        val targetH = safeBottom - safeTop
+        val ss = maxOf(w / bitmap.width, targetH / bitmap.height)
+        val rrw = bitmap.width * ss
+        val rrh = bitmap.height * ss
+        return RectF((w - rrw) / 2f, safeTop + (targetH - rrh) / 2f, (w + rrw) / 2f, safeTop + (targetH + rrh) / 2f)
     }
 
     private fun drawMainMenu(c: Canvas, a: Float) {
