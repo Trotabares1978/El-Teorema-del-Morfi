@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.*
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -81,31 +80,97 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val d = fitRect(width.toFloat(), height.toFloat())
         val master = maskCanvas ?: return
 
-        // Rebuild one cumulative drawing mask every frame. This is important:
-        // nothing is "revealed" as a separate sticker; everything already drawn
-        // remains on the paper while the next strokes are added to it.
+        // 1) Fondo: una capa completa e independiente. No se revela la imagen
+        // final acá, por lo tanto jamás aparecen "agujeros" blancos.
         clear(master)
+        drawPastelBackground(c, d, ease((t - 0.00f) / 2.40f))
 
-        addLandscape(master, d, ease((t - 0.00f) / 5.30f), t)
-        addRoad(master, d, ease((t - 3.60f) / 2.70f))
+        // 2) Camino: es el primer elemento que se materializa sobre el fondo.
+        addRoad(master, d, ease((t - 1.90f) / 2.10f))
 
-        // Independent objects: background -> road -> locations -> Matías -> controls.
-        addObject(master, c, d, ease((t - 5.50f) / 1.40f), ::astilleroPath, diagonal = true)
-        addObject(master, c, d, ease((t - 7.00f) / 1.25f), ::pizzeriaPath, diagonal = false)
-        addObject(master, c, d, ease((t - 8.35f) / 1.20f), ::clinicPath, diagonal = false)
-        addObject(master, c, d, ease((t - 9.65f) / 1.35f), ::schoolPath, diagonal = false)
-        addObject(master, c, d, ease((t - 11.15f) / 1.70f), ::matiasPath, diagonal = true)
-        addObject(master, c, d, ease((t - 12.35f) / 1.10f), ::titlePath, diagonal = false)
-        addObject(master, c, d, ease((t - 13.45f) / 1.00f), ::enterPath, diagonal = true)
+        // 3) Los cuatro lugares aparecen juntos, como elementos independientes.
+        val places = ease((t - 3.75f) / 1.65f)
+        addObject(master, c, d, places, ::astilleroPath)
+        addObject(master, c, d, places, ::pizzeriaPath)
+        addObject(master, c, d, places, ::clinicPath)
+        addObject(master, c, d, places, ::schoolPath)
+
+        // 4) Matías aparece después de los lugares.
+        addObject(master, c, d, ease((t - 5.55f) / 1.55f), ::matiasPath)
+
+        // 5) Título y, por último, el botón Entrar.
+        addObject(master, c, d, ease((t - 6.65f) / 0.80f), ::titlePath)
+        addObject(master, c, d, ease((t - 7.45f) / 0.90f), ::enterPath)
 
         drawMasked(c, d)
 
-        if (t >= 14.55f) c.drawBitmap(bitmap, null, d, imagePaint)
+        if (t >= 8.70f) c.drawBitmap(bitmap, null, d, imagePaint)
 
-        if (t < 15.8f) postInvalidateOnAnimation()
+        if (t < 9.10f) postInvalidateOnAnimation()
     }
 
-    /** Adds the broad background strokes to the cumulative mask. */
+    /**
+     * Fondo real de la escena: cielo, horizonte, río y campo.
+     * Es una sola capa continua; los edificios, el camino y Matías NO forman
+     * parte de ella. Los objetos se superponen después mediante sus máscaras.
+     */
+    private fun drawPastelBackground(c: Canvas, d: RectF, amount: Float) {
+        val a = amount.coerceIn(0f, 1f)
+        if (a <= 0f) return
+
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val h = d.height()
+
+        // Cielo pastel completo.
+        p.color = Color.rgb(247, 235, 205)
+        p.alpha = (255 * a).toInt()
+        c.drawRect(d.left, d.top, d.right, d.top + h * .405f, p)
+
+        // Río al fondo.
+        p.color = Color.rgb(183, 211, 205)
+        c.drawRect(d.left, d.top + h * .405f, d.right, d.top + h * .505f, p)
+
+        // Campo continuo.
+        p.color = Color.rgb(190, 207, 157)
+        c.drawRect(d.left, d.top + h * .505f, d.right, d.bottom, p)
+
+        // Segunda masa de campo para conservar la sensación orgánica de la
+        // ilustración sin introducir recortes ni huecos.
+        val field = Path()
+        field.moveTo(d.left, d.top + h * .555f)
+        field.cubicTo(
+            d.left + d.width() * .22f, d.top + h * .515f,
+            d.left + d.width() * .44f, d.top + h * .575f,
+            d.left + d.width() * .64f, d.top + h * .535f
+        )
+        field.cubicTo(
+            d.left + d.width() * .80f, d.top + h * .505f,
+            d.left + d.width() * .94f, d.top + h * .555f,
+            d.right, d.top + h * .525f
+        )
+        field.lineTo(d.right, d.bottom)
+        field.lineTo(d.left, d.bottom)
+        field.close()
+        p.color = Color.rgb(205, 215, 164)
+        c.drawPath(field, p)
+
+        // Sol suave, también perteneciente al fondo.
+        val sun = Path()
+        sun.addOval(
+            RectF(
+                d.left + d.width() * .549f,
+                d.top + h * .270f,
+                d.left + d.width() * .671f,
+                d.top + h * .352f
+            ),
+            Path.Direction.CW
+        )
+        p.color = Color.rgb(239, 198, 126)
+        p.alpha = (235 * a).toInt()
+        c.drawPath(sun, p)
+    }
+
+    /** Adds the broad background strokes to the cumulative mask.
     /**
      * BACKGROUND LAYER — one complete, continuous layer.
      * It is deliberately independent from every foreground object.
@@ -113,32 +178,8 @@ class MorfiImageIntroView(context: Context) : View(context) {
      * hole waiting for a later object.
      */
     private fun addLandscape(master: Canvas, d: RectF, amount: Float, t: Float) {
-        if (amount <= 0f) return
-        val brush = brushCanvas ?: return
-        clear(brush)
-
-        val rows = 46
-        val progress = amount.coerceIn(0f, 1f) * rows
-        for (i in 0 until rows) {
-            val local = (progress - i).coerceIn(0f, 1f)
-            if (local <= 0f) continue
-            val y = i / (rows - 1f)
-            val wobble = sin(i * 1.71f + t * .35f) * d.height() * .0035f
-            val widthJitter = .020f + ((i * 17) % 5) * .0035f
-            paintStroke(
-                brush, d, -.08f, y, 1.08f, local,
-                d.height() * widthJitter, wobble
-            )
-        }
-
-        // The landscape is intentionally allowed to pass behind everything.
-        // Foreground objects will be drawn ON TOP later.
-        val sunAmount = ease((t - 2.0f) / 1.35f)
-        if (sunAmount > 0f) {
-            drawSoftObjectBrush(brush, d, sunPath(d), sunAmount, 8)
-        }
-
-        addBrushToMaster(master, brush)
+        // El fondo ya no se construye dentro de la máscara. Se dibuja como una
+        // capa completa e independiente en drawPastelBackground().
     }
 
     private fun addRoad(master: Canvas, d: RectF, amount: Float) {
@@ -193,31 +234,32 @@ class MorfiImageIntroView(context: Context) : View(context) {
         c: Canvas,
         d: RectF,
         amount: Float,
-        pathFactory: (RectF) -> Path,
-        diagonal: Boolean
+        pathFactory: (RectF) -> Path
     ) {
         if (amount <= 0f) return
-        val path=pathFactory(d)
-        val box=RectF(); path.computeBounds(box,true)
-        val a=amount.coerceIn(0f,1f)
 
-        // Only this object's actual silhouette is allowed to reveal the sharp
-        // illustration. Nothing outside it changes.
-        val brush=brushCanvas ?: return
+        val path = pathFactory(d)
+        val box = RectF()
+        path.computeBounds(box, true)
+        val a = amount.coerceIn(0f, 1f)
+
+        val brush = brushCanvas ?: return
         clear(brush)
 
-        val fill=Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color=Color.WHITE
-            style=Paint.Style.FILL
-            alpha=(255f*ease(a)).toInt()
+        // La máscara coincide con la silueta del objeto, no con su rectángulo.
+        // Así el bitmap final solo aparece dentro de ese objeto.
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+            alpha = (255f * a).toInt()
         }
-        brush.drawPath(path,fill)
+        brush.drawPath(path, fill)
 
-        // A moving contour gives the impression of a hand tracing this exact
-        // silhouette before the color settles in.
-        drawMovingContour(c,path,a,box)
+        // Pequeño trazo que sigue el contorno: sensación de materialización,
+        // sin barridos rectangulares ni diagonales geométricas.
+        drawMovingContour(c, path, a, box)
 
-        addBrushToMaster(master,brush)
+        addBrushToMaster(master, brush)
     }
 
     private fun paintStroke(
