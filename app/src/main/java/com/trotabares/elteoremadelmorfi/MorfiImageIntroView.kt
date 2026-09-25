@@ -88,13 +88,14 @@ class MorfiImageIntroView(context: Context) : View(context) {
         addLandscape(master, d, ease((t - 0.00f) / 5.30f), t)
         addRoad(master, d, ease((t - 3.60f) / 2.70f))
 
-        addObject(master, c, d, ease((t - 5.55f) / 1.55f), ::astilleroPath, diagonal = true)
-        addObject(master, c, d, ease((t - 6.70f) / 1.45f), ::pizzeriaPath, diagonal = false)
-        addObject(master, c, d, ease((t - 7.75f) / 1.40f), ::clinicPath, diagonal = true)
-        addObject(master, c, d, ease((t - 8.75f) / 1.55f), ::schoolPath, diagonal = false)
-        addObject(master, c, d, ease((t - 9.85f) / 2.45f), ::matiasPath, diagonal = true)
-        addObject(master, c, d, ease((t - 12.15f) / 1.30f), ::titlePath, diagonal = false)
-        addObject(master, c, d, ease((t - 13.20f) / 1.10f), ::enterPath, diagonal = true)
+        // Independent objects: background -> road -> locations -> Matías -> controls.
+        addObject(master, c, d, ease((t - 5.55f) / 1.25f), ::astilleroPath, diagonal = true)
+        addObject(master, c, d, ease((t - 6.85f) / 1.15f), ::pizzeriaPath, diagonal = false)
+        addObject(master, c, d, ease((t - 8.05f) / 1.15f), ::clinicPath, diagonal = false)
+        addObject(master, c, d, ease((t - 9.25f) / 1.25f), ::schoolPath, diagonal = false)
+        addObject(master, c, d, ease((t - 10.60f) / 1.55f), ::matiasPath, diagonal = true)
+        addObject(master, c, d, ease((t - 12.35f) / 1.10f), ::titlePath, diagonal = false)
+        addObject(master, c, d, ease((t - 13.45f) / 1.00f), ::enterPath, diagonal = true)
 
         drawMasked(c, d)
 
@@ -182,55 +183,20 @@ class MorfiImageIntroView(context: Context) : View(context) {
         addBrushToMaster(master, brush)
     }
 
-    private fun addObject(
-        master: Canvas,
-        c: Canvas,
-        d: RectF,
-        amount: Float,
-        pathFactory: (RectF) -> Path,
-        diagonal: Boolean
-    ) {
+    private fun addObject(master: Canvas,c: Canvas,d: RectF,amount: Float,pathFactory: (RectF)->Path,diagonal: Boolean) {
         if (amount <= 0f) return
-        val path = pathFactory(d)
-        val box = RectF()
-        path.computeBounds(box, true)
-
-        // Instead of drawing a complete contour, only a moving pencil trace is
-        // shown. It fades as color accumulates, avoiding the "sticker outline".
-        drawMovingContour(c, path, amount, box)
-
-        val brush = brushCanvas ?: return
+        val path=pathFactory(d); val box=RectF(); path.computeBounds(box,true); val a=amount.coerceIn(0f,1f)
+        val alpha=(255f*ease(a)).toInt().coerceIn(0,255)
+        val save=c.saveLayer(box,null)
+        imagePaint.alpha=alpha; c.drawBitmap(bitmap,null,d,imagePaint); imagePaint.alpha=255
+        maskPaint.reset(); maskPaint.isAntiAlias=true; maskPaint.color=Color.WHITE
+        maskPaint.xfermode=PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        c.drawPath(path,maskPaint); maskPaint.xfermode=null; c.restoreToCount(save)
+        drawMovingContour(c,path,a,box)
+        val brush=brushCanvas ?: return
         clear(brush)
-
-        val rows = 18
-        val progress = amount.coerceIn(0f, 1f) * rows
-        for (i in 0 until rows) {
-            val local = (progress - i).coerceIn(0f, 1f)
-            if (local <= 0f) continue
-
-            if (!diagonal) {
-                val y = box.top + box.height() * (i / (rows - 1f))
-                val drift = sin(i * 2.4f) * box.width() * .035f
-                paintStroke(
-                    brush,
-                    RectF(box.left, box.top, box.right, box.bottom),
-                    -.18f, (y-box.top)/box.height(), 1.18f, local,
-                    maxOf(box.height() * (.035f + (i % 3) * .012f), 2.2f),
-                    drift
-                )
-            } else {
-                paintDiagonalStroke(brush, box, i, local)
-            }
-        }
-
-        // A few translucent-looking dry-brush passes are simulated by narrow
-        // offset strokes. They break up the unnaturally perfect boundary.
-        if (amount > .18f) {
-            drawSoftObjectBrush(brush, d, path, ease((amount-.18f)/.82f), 7)
-        }
-
-        clipBrushToPath(brush, path)
-        addBrushToMaster(master, brush)
+        brush.drawPath(path,Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.WHITE;style=Paint.Style.FILL;this.alpha=alpha})
+        addBrushToMaster(master,brush)
     }
 
     private fun paintStroke(
@@ -281,7 +247,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
             strokeWidth = maxOf(2f, box.height() * (.028f + (index % 3) * .008f))
-            maskFilter = BlurMaskFilter(maxOf(1f, box.height() * .14f), BlurMaskFilter.Blur.NORMAL)
+            maskFilter = BlurMaskFilter(maxOf(1f, strokeWidth * .14f), BlurMaskFilter.Blur.NORMAL)
         }
         canvas.drawPath(p, q)
     }
@@ -390,48 +356,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         .195f to 1.0f, .415f to .640f, .465f to .505f
     ))
 
-    private fun astilleroPath(d: RectF): Path = polygonPath(d, arrayOf(
-        0f to .352f, .035f to .352f, .035f to .336f, .059f to .336f,
-        .059f to .297f, .076f to .297f, .076f to .263f, .096f to .263f,
-        .100f to .315f, .121f to .315f, .127f to .277f, .146f to .277f,
-        .150f to .306f, .172f to .306f, .172f to .339f, .195f to .339f,
-        .199f to .358f, .234f to .358f, .234f to .377f, .266f to .377f,
-        .266f to .397f, .289f to .397f, .289f to .441f, .270f to .441f,
-        .270f to .456f, 0f to .456f
-    ))
-
-    private fun pizzeriaPath(d: RectF): Path = polygonPath(d, arrayOf(
-        0f to .482f, .035f to .482f, .035f to .473f, .217f to .473f,
-        .217f to .487f, .262f to .487f, .262f to .510f, .293f to .510f,
-        .293f to .617f, .271f to .617f, .271f to .651f, 0f to .651f
-    ))
-
-    private fun clinicPath(d: RectF): Path = polygonPath(d, arrayOf(
-        .627f to .457f, .646f to .453f, .697f to .453f, .697f to .459f,
-        .732f to .459f, .732f to .497f, .711f to .497f, .711f to .517f,
-        .625f to .517f
-    ))
-
-    private fun schoolPath(d: RectF): Path = polygonPath(d, arrayOf(
-        .766f to .492f, 1f to .492f, 1f to .647f, .758f to .647f,
-        .758f to .594f, .746f to .594f, .746f to .547f, .766f to .547f
-    ))
-
-    private fun matiasPath(d: RectF): Path = polygonPath(d, arrayOf(
-        .145f to .866f, .133f to .846f, .141f to .815f, .152f to .797f,
-        .168f to .773f, .188f to .753f, .205f to .732f, .230f to .710f,
-        .252f to .684f, .277f to .658f, .295f to .630f, .303f to .607f,
-        .313f to .583f, .324f to .559f, .344f to .540f, .365f to .521f,
-        .395f to .502f, .424f to .483f, .455f to .463f, .486f to .448f,
-        .518f to .438f, .549f to .448f, .574f to .466f, .600f to .491f,
-        .619f to .521f, .638f to .549f, .656f to .579f, .660f to .611f,
-        .650f to .635f, .633f to .658f, .617f to .680f, 0.604f to .704f,
-        .588f to .733f, .573f to .761f, .559f to .792f, .543f to .825f,
-        .528f to .861f, .518f to .892f, .508f to .929f, .488f to 1.0f,
-        .229f to 1.0f, .217f to .974f, .199f to .949f, .187f to .930f,
-        .170f to .911f, .153f to .888f
-    ))
-
+    private fun astilleroPath(d: RectF): Path { val p=Path(); p.moveTo(d.left,d.top+d.height()*.456f); p.lineTo(d.left,d.top+d.height()*.352f); p.lineTo(d.left+d.width()*.035f,d.top+d.height()*.352f); p.lineTo(d.left+d.width()*.059f,d.top+d.height()*.297f); p.cubicTo(d.left+d.width()*.078f,d.top+d.height()*.263f,d.left+d.width()*.096f,d.top+d.height()*.263f,d.left+d.width()*.100f,d.top+d.height()*.315f); p.cubicTo(d.left+d.width()*.121f,d.top+d.height()*.315f,d.left+d.width()*.127f,d.top+d.height()*.277f,d.left+d.width()*.146f,d.top+d.height()*.277f); p.cubicTo(d.left+d.width()*.150f,d.top+d.height()*.306f,d.left+d.width()*.172f,d.top+d.height()*.306f,d.left+d.width()*.172f,d.top+d.height()*.339f); p.cubicTo(d.left+d.width()*.195f,d.top+d.height()*.339f,d.left+d.width()*.199f,d.top+d.height()*.358f,d.left+d.width()*.234f,d.top+d.height()*.358f); p.cubicTo(d.left+d.width()*.266f,d.top+d.height()*.377f,d.left+d.width()*.289f,d.top+d.height()*.397f,d.left+d.width()*.289f,d.top+d.height()*.441f); p.lineTo(d.left+d.width()*.270f,d.top+d.height()*.456f); p.close(); return p }
+    private fun pizzeriaPath(d: RectF): Path { val p=Path(); p.moveTo(d.left,d.top+d.height()*.651f); p.lineTo(d.left,d.top+d.height()*.482f); p.cubicTo(d.left+d.width()*.08f,d.top+d.height()*.477f,d.left+d.width()*.17f,d.top+d.height()*.473f,d.left+d.width()*.217f,d.top+d.height()*.473f); p.cubicTo(d.left+d.width()*.235f,d.top+d.height()*.487f,d.left+d.width()*.262f,d.top+d.height()*.487f,d.left+d.width()*.262f,d.top+d.height()*.510f); p.cubicTo(d.left+d.width()*.282f,d.top+d.height()*.510f,d.left+d.width()*.293f,d.top+d.height()*.535f,d.left+d.width()*.293f,d.top+d.height()*.617f); p.lineTo(d.left+d.width()*.271f,d.top+d.height()*.651f); p.close(); return p }
+    private fun clinicPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.625f,d.top+d.height()*.517f); p.lineTo(d.left+d.width()*.625f,d.top+d.height()*.457f); p.cubicTo(d.left+d.width()*.645f,d.top+d.height()*.453f,d.left+d.width()*.675f,d.top+d.height()*.452f,d.left+d.width()*.697f,d.top+d.height()*.453f); p.cubicTo(d.left+d.width()*.716f,d.top+d.height()*.455f,d.left+d.width()*.732f,d.top+d.height()*.459f,d.left+d.width()*.732f,d.top+d.height()*.497f); p.cubicTo(d.left+d.width()*.715f,d.top+d.height()*.503f,d.left+d.width()*.700f,d.top+d.height()*.508f,d.left+d.width()*.625f,d.top+d.height()*.517f); p.close(); return p }
+    private fun schoolPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.758f,d.top+d.height()*.647f); p.lineTo(d.left+d.width()*.758f,d.top+d.height()*.594f); p.cubicTo(d.left+d.width()*.752f,d.top+d.height()*.574f,d.left+d.width()*.746f,d.top+d.height()*.559f,d.left+d.width()*.746f,d.top+d.height()*.547f); p.cubicTo(d.left+d.width()*.752f,d.top+d.height()*.530f,d.left+d.width()*.760f,d.top+d.height()*.512f,d.left+d.width()*.766f,d.top+d.height()*.492f); p.cubicTo(d.left+d.width()*.825f,d.top+d.height()*.490f,d.left+d.width()*.930f,d.top+d.height()*.491f,d.right,d.top+d.height()*.492f); p.lineTo(d.right,d.top+d.height()*.647f); p.close(); return p }
+    private fun matiasPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.145f,d.top+d.height()*.866f); p.cubicTo(d.left+d.width()*.130f,d.top+d.height()*.842f,d.left+d.width()*.139f,d.top+d.height()*.813f,d.left+d.width()*.168f,d.top+d.height()*.773f); p.cubicTo(d.left+d.width()*.205f,d.top+d.height()*.732f,d.left+d.width()*.252f,d.top+d.height()*.684f,d.left+d.width()*.295f,d.top+d.height()*.630f); p.cubicTo(d.left+d.width()*.326f,d.top+d.height()*.565f,d.left+d.width()*.365f,d.top+d.height()*.521f,d.left+d.width()*.424f,d.top+d.height()*.483f); p.cubicTo(d.left+d.width()*.474f,d.top+d.height()*.448f,d.left+d.width()*.518f,d.top+d.height()*.438f,d.left+d.width()*.574f,d.top+d.height()*.466f); p.cubicTo(d.left+d.width()*.619f,d.top+d.height()*.521f,d.left+d.width()*.660f,d.top+d.height()*.579f,d.left+d.width()*.660f,d.top+d.height()*.611f); p.cubicTo(d.left+d.width()*.650f,d.top+d.height()*.650f,d.left+d.width()*.617f,d.top+d.height()*.680f,d.left+d.width()*.588f,d.top+d.height()*.733f); p.cubicTo(d.left+d.width()*.559f,d.top+d.height()*.792f,d.left+d.width()*.528f,d.top+d.height()*.861f,d.left+d.width()*.488f,d.top+d.height()*1.0f); p.lineTo(d.left+d.width()*.229f,d.top+d.height()*1.0f); p.cubicTo(d.left+d.width()*.205f,d.top+d.height()*.950f,d.left+d.width()*.170f,d.top+d.height()*.911f,d.left+d.width()*.145f,d.top+d.height()*.866f); p.close(); return p }
     private fun titlePath(d: RectF): Path = polygonPath(d, arrayOf(
         .082f to .027f, .896f to .027f, .930f to .242f,
         .812f to .275f, .184f to .274f, .078f to .230f
