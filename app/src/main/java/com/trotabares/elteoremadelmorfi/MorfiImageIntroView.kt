@@ -112,11 +112,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
             p.lineTo(w*.40f,h*.53f); p.lineTo(w*.39f,h*.68f)
             p.lineTo(0f,h*.68f); p.close()
 
-            p.moveTo(w*.70f,h*.38f); p.lineTo(w,h*.37f)
-            p.lineTo(w,h*.48f); p.lineTo(w*.75f,h*.49f); p.close()
+            p.moveTo(w*.70f,h*.38f); p.lineTo(w.toFloat(),h*.37f)
+            p.lineTo(w.toFloat(),h*.48f); p.lineTo(w*.75f,h*.49f); p.close()
 
-            p.moveTo(w*.69f,h*.47f); p.lineTo(w,h*.46f)
-            p.lineTo(w,h*.69f); p.lineTo(w*.77f,h*.67f)
+            p.moveTo(w*.69f,h*.47f); p.lineTo(w.toFloat(),h*.46f)
+            p.lineTo(w.toFloat(),h*.69f); p.lineTo(w*.77f,h*.67f)
             p.lineTo(w*.68f,h*.58f); p.close()
         }
 
