@@ -1,0 +1,20 @@
+{
+  "intro": {
+    "mode": "accumulative_layers",
+    "source_image": "original_illustration",
+    "states": [
+      {"id":1,"name":"background","adds":["sky","sun","sea","horizon","field"]},
+      {"id":2,"name":"road","adds":["road"]},
+      {"id":3,"name":"places","adds":["astillero","pizzeria","clinic","school"]},
+      {"id":4,"name":"matias","adds":["matias"]},
+      {"id":5,"name":"title","adds":["title","subtitle"]},
+      {"id":6,"name":"enter","adds":["enter_button"]}
+    ],
+    "forbidden_reveal_methods": [
+      "PathMeasure contour sweep",
+      "diagonal wipe",
+      "rectangular reveal",
+      "fragmented internal brush reveal"
+    ]
+  }
+}
