@@ -78,7 +78,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
             val t = (now - startedAt) / 1000f
             drawOpening(c, t)
 
-            if (t < 15.8f) {
+            if (t < 7.0f) {
                 postInvalidateOnAnimation()
             }
         } else {
@@ -91,12 +91,12 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val bg = backgroundBitmap
 
         // Estados completos y acumulativos. Nada se descubre por barridos.
-        val backgroundAmount = fade(t / 0.35f)
-        val roadAmount = fade((t - 0.70f) / 1.20f)
-        val placesAmount = fade((t - 1.85f) / 1.45f)
-        val matiasAmount = fade((t - 3.25f) / 1.30f)
-        val titleAmount = fade((t - 4.05f) / 2.35f)
-        val enterAmount = fade((t - 5.70f) / 1.20f)
+        val backgroundAmount = 1f
+        val roadAmount = fade((t - 0.35f) / 0.80f)
+        val placesAmount = fade((t - 1.10f) / 1.05f)
+        val matiasAmount = fade((t - 2.15f) / 1.05f)
+        val titleAmount = fade((t - 3.00f) / 1.55f)
+        val enterAmount = fade((t - 4.55f) / 0.85f)
 
         if (backgroundAmount > 0f) {
             imagePaint.alpha = (255f * backgroundAmount).toInt()
@@ -109,8 +109,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[2], matiasAmount)
         drawTitleStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
-        if (t < 8.20f) postInvalidateOnAnimation()
-    }
+     }
 
     private fun drawTitleStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
         if (mask == null || amount <= 0f) return
@@ -118,30 +117,18 @@ class MorfiImageIntroView(context: Context) : View(context) {
         imagePaint.alpha = 255
         c.drawBitmap(bitmap, null, d, imagePaint)
 
-        // El título se revela de manera continua desde arriba hacia abajo,
-        // usando la máscara real del título. No se dibuja el rectángulo de
-        // fondo ni se hace un salto desde un fragmento al título completo.
-        val reveal = amount.coerceIn(0f, 1f)
-        val titleTop = d.top + d.height() * .025f
-        val titleBottom = d.top + d.height() * .30f
-        val revealY = titleTop + (titleBottom - titleTop) * reveal
-
+        // El título aparece entero, pero materializándose suavemente.
+        // Evitamos el barrido vertical que dejaba ver primero un fragmento
+        // del borde y después hacía aparecer el resto de golpe.
         maskPaint.reset()
         maskPaint.isAntiAlias = true
-        maskPaint.shader = LinearGradient(
-            0f, titleTop, 0f, titleBottom,
-            intArrayOf(Color.TRANSPARENT, Color.WHITE, Color.WHITE),
-            floatArrayOf(
-                (reveal - .16f).coerceIn(0f, 1f),
-                (reveal - .03f).coerceIn(0f, 1f),
-                reveal.coerceIn(0f, 1f)
-            ),
-            Shader.TileMode.CLAMP
-        )
+        maskPaint.alpha = (255f * amount.coerceIn(0f, 1f)).toInt()
+        maskPaint.maskFilter = BlurMaskFilter(0.9f, BlurMaskFilter.Blur.NORMAL)
         maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         c.drawBitmap(mask, null, d, maskPaint)
-        maskPaint.shader = null
         maskPaint.xfermode = null
+        maskPaint.maskFilter = null
+        maskPaint.alpha = 255
         c.restoreToCount(save)
     }
 
@@ -656,11 +643,17 @@ class MorfiImageIntroView(context: Context) : View(context) {
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (e.action == MotionEvent.ACTION_UP && !entered) {
             val t = (System.currentTimeMillis() - startedAt) / 1000f
-            if (t >= 12.9f) {
+            val d = fitRect(width.toFloat(), height.toFloat())
+            val button = RectF(
+                d.left + d.width() * .215f,
+                d.top + d.height() * .842f,
+                d.left + d.width() * .790f,
+                d.top + d.height() * .975f
+            )
+            if (t >= 5.10f && button.contains(e.x, e.y)) {
                 entered = true
                 enteredAt = System.currentTimeMillis()
                 postInvalidateOnAnimation()
-            }
         }
         return true
     }
