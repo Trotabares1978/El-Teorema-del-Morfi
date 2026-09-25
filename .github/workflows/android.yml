@@ -28,6 +28,10 @@ jobs:
           mv app/src/main/res/drawable/morfi_intro_512.jpg app/src/main/res/drawable/morfi_intro.jpg
           identify app/src/main/res/drawable/morfi_intro.jpg
           test "$(identify -format '%wx%h' app/src/main/res/drawable/morfi_intro.jpg)" = "512x768"
+          mkdir -p app/src/main/res/drawable
+          cat app/src/main/assets/morfi_background_b64/part00.txt app/src/main/assets/morfi_background_b64/part01.txt | tr -d '\\n\\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_background.webp
+          file app/src/main/res/drawable/morfi_background.webp
+          test -s app/src/main/res/drawable/morfi_background.webp
 
       - name: Verify intro audio is local
         run: |
