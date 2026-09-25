@@ -22,11 +22,9 @@ jobs:
           cat app/src/main/assets/morfi_b64_256/part00.txt app/src/main/assets/morfi_b64_256/part01.txt app/src/main/assets/morfi_b64_256/part02.txt app/src/main/assets/morfi_b64_256/part03.txt app/src/main/assets/morfi_b64_256/part04.txt app/src/main/assets/morfi_b64_256/part05.txt app/src/main/assets/morfi_b64_256/part06.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
           file app/src/main/res/drawable/morfi_intro.jpg
           test -s app/src/main/res/drawable/morfi_intro.jpg
-          if command -v magick >/dev/null 2>&1; then
-            magick app/src/main/res/drawable/morfi_intro.jpg -filter Lanczos -resize 512x768 -sampling-factor 4:4:4 -quality 88 app/src/main/res/drawable/morfi_intro_512.jpg
-          else
-            convert app/src/main/res/drawable/morfi_intro.jpg -filter Lanczos -resize 512x768 -sampling-factor 4:4:4 -quality 88 app/src/main/res/drawable/morfi_intro_512.jpg
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          magick app/src/main/res/drawable/morfi_intro.jpg -filter Lanczos -resize 512x768 -sampling-factor 4:4:4 -quality 88 app/src/main/res/drawable/morfi_intro_512.jpg
           mv app/src/main/res/drawable/morfi_intro_512.jpg app/src/main/res/drawable/morfi_intro.jpg
           identify app/src/main/res/drawable/morfi_intro.jpg
           test "$(identify -format '%wx%h' app/src/main/res/drawable/morfi_intro.jpg)" = "512x768"
