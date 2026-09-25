@@ -91,12 +91,12 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val bg = backgroundBitmap
 
         // Estados completos y acumulativos. Nada se descubre por barridos.
-        val backgroundAmount = fade((t - 0.02f) / 0.48f)
-        val roadAmount = fade((t - 0.48f) / 0.95f)
-        val placesAmount = fade((t - 1.55f) / 1.15f)
-        val matiasAmount = fade((t - 2.85f) / 1.05f)
-        val titleAmount = fade((t - 3.95f) / 0.95f)
-        val enterAmount = fade((t - 4.95f) / 0.90f)
+        val backgroundAmount = fade((t - 0.05f) / 0.70f)
+        val roadAmount = fade((t - 0.70f) / 1.20f)
+        val placesAmount = fade((t - 1.85f) / 1.45f)
+        val matiasAmount = fade((t - 3.25f) / 1.30f)
+        val titleAmount = fade((t - 4.55f) / 1.15f)
+        val enterAmount = fade((t - 5.55f) / 1.05f)
 
         if (backgroundAmount > 0f) {
             imagePaint.alpha = (255f * backgroundAmount).toInt()
@@ -110,13 +110,13 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
 
-        val finalAmount = fade((t - 5.75f) / 1.25f)
+        val finalAmount = fade((t - 6.35f) / 1.40f)
         if (finalAmount > 0f) {
             imagePaint.alpha = (255f * finalAmount).toInt()
             c.drawBitmap(bitmap, null, d, imagePaint)
             imagePaint.alpha = 255
         }
-        if (t < 7.10f) postInvalidateOnAnimation()
+        if (t < 8.10f) postInvalidateOnAnimation()
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
