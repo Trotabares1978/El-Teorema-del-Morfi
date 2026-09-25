@@ -654,6 +654,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
                 entered = true
                 enteredAt = System.currentTimeMillis()
                 postInvalidateOnAnimation()
+            }
         }
         return true
     }
