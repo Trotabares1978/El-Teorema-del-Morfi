@@ -15,13 +15,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download real intro illustration
+      - name: Restore intro illustration from repository data
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p app/src/main/res/drawable
-          curl -fL --retry 3 --retry-all-errors 'https://media.canva.com/v2/document-image/hash:1062200032/height=547/id:DAHWK2xoZJw/type:B/width=365?brand=BAF9nfCSQOI&csig=AAAAAAAAAAAAAAAAAAAAAAHsVe50qr6pGEkgJMVZM-Q-XAJtO2PPyIVCrFudoVwZ&exp=1790331976&fallback=https%3A%2F%2Fs3.amazonaws.com%2Fdocument-export.canva.com%2FxoZJw%2FDAHWK2xoZJw%2F1%2Fthumbnail%2F0001.png%3FX-Amz-Algorithm%3DAWS4-HMAC-SHA256%26X-Amz-Credential%3DAKIAQYCGKMUHTDF2ZFFQ%252F20260924%252Fus-east-1%252Fs3%252Faws4_request%26X-Amz-Date%3D20260924T201050Z%26X-Amz-Expires%3D54026%26X-Amz-Signature%3Df4804107aba96a3121571f557ae72e050fb3678dd1b32bd68054d13976449c96%26X-Amz-SignedHeaders%3Dhost%26response-expires%3DFri%252C%252025%2520Sep%25202026%252011%253A11%253A16%2520GMT&osig=AAAAAAAAAAAAAAAAAAAAAGuZWnhF2hMf501OfyfSjBbVoxri1jFsnUUEO4rKRp6C&page=1&signed=brand%2Cfallback%2Cpage%2Cversion&signer=document-rpc&version=1' -o app/src/main/res/drawable/morfi_intro.jpg
+          cat app/src/main/assets/morfi_b64/part00.txt app/src/main/assets/morfi_b64/part01.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
           file app/src/main/res/drawable/morfi_intro.jpg
           test -s app/src/main/res/drawable/morfi_intro.jpg
+          python3 - <<'PY'
+          from PIL import Image
+          p="app/src/main/res/drawable/morfi_intro.jpg"
+          im=Image.open(p)
+          im.verify()
+          print("Intro image OK:", p)
+          PY
 
       - name: Verify intro audio is local
         run: |
