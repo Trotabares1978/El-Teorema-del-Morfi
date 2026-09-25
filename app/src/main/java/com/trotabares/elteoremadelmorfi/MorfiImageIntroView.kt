@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.*
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.max
 import kotlin.math.min
 
 class MorfiImageIntroView(context: Context) : View(context) {
@@ -61,16 +60,16 @@ class MorfiImageIntroView(context: Context) : View(context) {
         // 1.45–2.45 — Río de la Plata appears as a horizontal band.
         revealRect(c, d, 0f, 0.31f, 1f, 0.48f, ease((t - 1.45f) / 1.00f))
 
-        // 2.20–3.25 — central road grows from the horizon toward the viewer.
+        // 2.20–3.25 — central road grows from the horizon, stopping before Matías.
         val road = ease((t - 2.20f) / 1.05f)
         if (road > 0f) {
             c.save()
             path.reset()
             val topX = d.left + d.width() * 0.515f
             val topY = d.top + d.height() * 0.43f
-            val bottomY = d.top + d.height() * (0.58f + 0.42f * road)
+            val bottomY = d.top + d.height() * (0.58f + 0.17f * road)
             val halfTop = d.width() * 0.018f
-            val halfBottom = d.width() * (0.045f + 0.31f * road)
+            val halfBottom = d.width() * (0.045f + 0.20f * road)
             path.moveTo(topX - halfTop, topY)
             path.lineTo(topX + halfTop, topY)
             path.lineTo(topX + halfBottom, bottomY)
@@ -83,7 +82,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
 
         // 3.00–6.40 — the places appear one at a time from the real illustration.
         popRegion(c, d, 0.00f, 0.38f, 0.34f, 0.61f, t, 3.00f, 0.75f, -18f, 0f) // Astillero
-        popRegion(c, d, 0.00f, 0.53f, 0.31f, 0.72f, t, 3.75f, 0.70f, -12f, 0f) // Pizzería
+        popRegion(c, d, 0.00f, 0.53f, 0.28f, 0.68f, t, 3.75f, 0.70f, -12f, 0f) // Pizzería
         popRegion(c, d, 0.63f, 0.43f, 0.93f, 0.61f, t, 4.45f, 0.70f, 14f, 0f) // Clínica
         popRegion(c, d, 0.70f, 0.51f, 1.00f, 0.70f, t, 5.15f, 0.75f, 14f, 0f) // Escuela
 
