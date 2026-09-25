@@ -31,6 +31,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
     private var brushBitmap: Bitmap? = null
     private var maskCanvas: Canvas? = null
     private var brushCanvas: Canvas? = null
+    private var backgroundBitmap: Bitmap? = null
 
     private var startedAt = 0L
     private var entered = false
@@ -56,6 +57,14 @@ class MorfiImageIntroView(context: Context) : View(context) {
         brushBitmap = Bitmap.createBitmap(ww, hh, Bitmap.Config.ARGB_8888)
         maskCanvas = Canvas(maskBitmap!!)
         brushCanvas = Canvas(brushBitmap!!)
+
+        // A blurred/low-resolution copy acts as the paper/background plate.
+        // Future objects sit on this plate instead of leaving white holes.
+        val bw = (ww / 12).coerceAtLeast(8)
+        val bh = (hh / 12).coerceAtLeast(8)
+        backgroundBitmap?.recycle()
+        backgroundBitmap = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+        Canvas(backgroundBitmap!!).drawBitmap(bitmap, null, RectF(0f, 0f, bw.toFloat(), bh.toFloat()), imagePaint)
     }
 
     override fun onDraw(c: Canvas) {
@@ -127,14 +136,29 @@ class MorfiImageIntroView(context: Context) : View(context) {
                 d.height() * widthJitter, wobble)
         }
 
-        // Remove future foreground zones from the landscape brush so they
-        // remain white until their own construction begins.
-        maskPaint.reset()
-        maskPaint.isAntiAlias = true
-        maskPaint.color = Color.WHITE
-        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
-        for (p in future) brush.drawPath(p, maskPaint)
-        maskPaint.xfermode = null
+        // Do NOT cut future objects out to white. That was the "holes in the
+        // background" problem. Put a soft background plate underneath them
+        // until each independent object is drawn.
+        val bg = backgroundBitmap
+        if (bg != null) {
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+                alpha = 210
+            }
+            maskPaint.reset()
+            maskPaint.isAntiAlias = true
+            maskPaint.color = Color.WHITE
+            maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+            // Preserve the existing landscape strokes, then use the soft plate
+            // only where a future object will eventually be placed.
+            val plate = Canvas(brushBitmap!!)
+            for (p in future) {
+                plate.save()
+                plate.clipPath(p)
+                plate.drawBitmap(bg, null, d, bgPaint)
+                plate.restore()
+            }
+            maskPaint.xfermode = null
+        }
 
         // The sun gets a soft, incomplete pencil/paint pass of its own.
         val sunAmount = ease((t - 2.0f) / 1.35f)
@@ -199,42 +223,27 @@ class MorfiImageIntroView(context: Context) : View(context) {
         diagonal: Boolean
     ) {
         if (amount <= 0f) return
+        val path=pathFactory(d)
+        val box=RectF(); path.computeBounds(box,true)
+        val a=amount.coerceIn(0f,1f)
 
-        val path = pathFactory(d)
-        val box = RectF()
-        path.computeBounds(box, true)
-        val a = amount.coerceIn(0f, 1f)
-
-        val brush = brushCanvas ?: return
+        // Only this object's actual silhouette is allowed to reveal the sharp
+        // illustration. Nothing outside it changes.
+        val brush=brushCanvas ?: return
         clear(brush)
 
-        // Soft opacity build-up inside THIS silhouette only.
-        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            style = Paint.Style.FILL
-            alpha = (255f * ease(a)).toInt().coerceIn(0, 255)
+        val fill=Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color=Color.WHITE
+            style=Paint.Style.FILL
+            alpha=(255f*ease(a)).toInt()
         }
-        brush.drawPath(path, fill)
+        brush.drawPath(path,fill)
 
-        // A tiny feather around the real contour makes the object feel drawn
-        // onto paper rather than clipped out of a rectangle.
-        if (a < 1f) {
-            val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.STROKE
-                strokeCap = Paint.Cap.ROUND
-                strokeJoin = Paint.Join.ROUND
-                strokeWidth = maxOf(1.2f, box.width() * .0045f)
-                alpha = (70f * (1f - a)).toInt().coerceIn(0, 70)
-                maskFilter = BlurMaskFilter(maxOf(1f, strokeWidth * .8f), BlurMaskFilter.Blur.NORMAL)
-            }
-            brush.drawPath(path, edge)
-        }
+        // A moving contour gives the impression of a hand tracing this exact
+        // silhouette before the color settles in.
+        drawMovingContour(c,path,a,box)
 
-        addBrushToMaster(master, brush)
-
-        // The contour follows the object's actual silhouette, never its box.
-        drawMovingContour(c, path, a, box)
+        addBrushToMaster(master,brush)
     }
 
     private fun paintStroke(
@@ -555,6 +564,8 @@ class MorfiImageIntroView(context: Context) : View(context) {
         brushBitmap?.recycle()
         maskBitmap = null
         brushBitmap = null
+        backgroundBitmap?.recycle()
+        backgroundBitmap = null
         maskCanvas = null
         brushCanvas = null
         super.onDetachedFromWindow()
