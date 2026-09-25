@@ -31,7 +31,6 @@ class MorfiImageIntroView(context: Context) : View(context) {
     private var brushBitmap: Bitmap? = null
     private var maskCanvas: Canvas? = null
     private var brushCanvas: Canvas? = null
-    private var backgroundBitmap: Bitmap? = null
 
     private var startedAt = 0L
     private var entered = false
@@ -58,13 +57,6 @@ class MorfiImageIntroView(context: Context) : View(context) {
         maskCanvas = Canvas(maskBitmap!!)
         brushCanvas = Canvas(brushBitmap!!)
 
-        // A blurred/low-resolution copy acts as the paper/background plate.
-        // Future objects sit on this plate instead of leaving white holes.
-        val bw = (ww / 12).coerceAtLeast(8)
-        val bh = (hh / 12).coerceAtLeast(8)
-        backgroundBitmap?.recycle()
-        backgroundBitmap = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-        Canvas(backgroundBitmap!!).drawBitmap(bitmap, null, RectF(0f, 0f, bw.toFloat(), bh.toFloat()), imagePaint)
     }
 
     override fun onDraw(c: Canvas) {
@@ -114,55 +106,37 @@ class MorfiImageIntroView(context: Context) : View(context) {
     }
 
     /** Adds the broad background strokes to the cumulative mask. */
+    /**
+     * BACKGROUND LAYER — one complete, continuous layer.
+     * It is deliberately independent from every foreground object.
+     * No building/person/path is cut out of it, so there can never be a white
+     * hole waiting for a later object.
+     */
     private fun addLandscape(master: Canvas, d: RectF, amount: Float, t: Float) {
         if (amount <= 0f) return
         val brush = brushCanvas ?: return
         clear(brush)
 
-        val future = arrayOf(
-            sunPath(d), roadPath(d), astilleroPath(d), pizzeriaPath(d),
-            clinicPath(d), schoolPath(d), matiasPath(d), titlePath(d), enterPath(d)
-        )
-
-        val rows = 38
+        val rows = 46
         val progress = amount.coerceIn(0f, 1f) * rows
         for (i in 0 until rows) {
             val local = (progress - i).coerceIn(0f, 1f)
             if (local <= 0f) continue
             val y = i / (rows - 1f)
-            val wobble = sin(i * 1.71f + t * .55f) * d.height() * .0045f
-            val widthJitter = .018f + ((i * 17) % 5) * .004f
-            paintStroke(brush, d, -.08f, y, 1.08f, local,
-                d.height() * widthJitter, wobble)
+            val wobble = sin(i * 1.71f + t * .35f) * d.height() * .0035f
+            val widthJitter = .020f + ((i * 17) % 5) * .0035f
+            paintStroke(
+                brush, d, -.08f, y, 1.08f, local,
+                d.height() * widthJitter, wobble
+            )
         }
 
-        // Do NOT cut future objects out to white. That was the "holes in the
-        // background" problem. Put a soft background plate underneath them
-        // until each independent object is drawn.
-        val bg = backgroundBitmap
-        if (bg != null) {
-            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-                alpha = 210
-            }
-            maskPaint.reset()
-            maskPaint.isAntiAlias = true
-            maskPaint.color = Color.WHITE
-            maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-            // Preserve the existing landscape strokes, then use the soft plate
-            // only where a future object will eventually be placed.
-            val plate = Canvas(brushBitmap!!)
-            for (p in future) {
-                plate.save()
-                plate.clipPath(p)
-                plate.drawBitmap(bg, null, d, bgPaint)
-                plate.restore()
-            }
-            maskPaint.xfermode = null
-        }
-
-        // The sun gets a soft, incomplete pencil/paint pass of its own.
+        // The landscape is intentionally allowed to pass behind everything.
+        // Foreground objects will be drawn ON TOP later.
         val sunAmount = ease((t - 2.0f) / 1.35f)
-        if (sunAmount > 0f) drawSoftObjectBrush(brush, d, sunPath(d), sunAmount, 8)
+        if (sunAmount > 0f) {
+            drawSoftObjectBrush(brush, d, sunPath(d), sunAmount, 8)
+        }
 
         addBrushToMaster(master, brush)
     }
@@ -564,8 +538,6 @@ class MorfiImageIntroView(context: Context) : View(context) {
         brushBitmap?.recycle()
         maskBitmap = null
         brushBitmap = null
-        backgroundBitmap?.recycle()
-        backgroundBitmap = null
         maskCanvas = null
         brushCanvas = null
         super.onDetachedFromWindow()
