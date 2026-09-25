@@ -19,9 +19,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p app/src/main/res/drawable
-          cat app/src/main/assets/morfi_b64/part00.txt app/src/main/assets/morfi_b64/part01.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
+          cat app/src/main/assets/morfi_b64_256/part00.txt app/src/main/assets/morfi_b64_256/part01.txt app/src/main/assets/morfi_b64_256/part02.txt app/src/main/assets/morfi_b64_256/part03.txt app/src/main/assets/morfi_b64_256/part04.txt app/src/main/assets/morfi_b64_256/part05.txt app/src/main/assets/morfi_b64_256/part06.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
           file app/src/main/res/drawable/morfi_intro.jpg
           test -s app/src/main/res/drawable/morfi_intro.jpg
+          echo "302a0b326663204582bc99d279cf2ccbe0e84cd10e6d5210b8c7d510c05a79f1  app/src/main/res/drawable/morfi_intro.jpg" | sha256sum -c -
 
       - name: Verify intro audio is local
         run: |
