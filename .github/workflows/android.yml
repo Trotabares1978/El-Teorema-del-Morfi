@@ -15,6 +15,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download real intro illustration
+        run: |
+          set -e
+          mkdir -p app/src/main/res/drawable
+          HOST='https://media.canva.com'
+          P1='/v2/document-image/hash:1062200032/height=547/id:DAHWK2xoZJw/type:B/width=365'
+          P2='?brand=BAF9nfCSQOI&csig=AAAAAAAAAAAAAAAAAAAAAHJ6ZTW6rHUq-FMKNzL8BfO_TjJ1EiFo_PDhv0TxX28e&exp=1790307523'
+          P3='&fallback=https%3A%2F%2Fs3.amazonaws.com%2Fdocument-export.canva.com%2FxoZJw%2FDAHWK2xoZJw%2F1%2Fthumbnail%2F0001.png'
+          P4='&page=1&signed=brand%2Cfallback%2Cpage%2Cversion&signer=document-rpc&version=1'
+          curl -fL --retry 3 --retry-all-errors "$HOST$P1$P2$P3$P4" -o app/src/main/res/drawable/morfi_intro.jpg
+          file app/src/main/res/drawable/morfi_intro.jpg
+          test -s app/src/main/res/drawable/morfi_intro.jpg
+
       - name: Verify intro audio is local
         run: |
           set -e
@@ -52,6 +65,11 @@ jobs:
 
       - name: Build debug APK
         run: gradle assembleDebug
+
+      - name: Verify intro image is inside APK
+        run: |
+          set -e
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -i "morfi_intro"
 
       - name: Verify audio is inside APK
         run: |
