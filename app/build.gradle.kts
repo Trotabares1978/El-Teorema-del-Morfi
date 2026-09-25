@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.trotabares.elteoremadelmorfi"
+    namespace = "com.trotabares1978.elteoremadelmorfi"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.trotabares.elteoremadelmorfi"
+        applicationId = "com.trotabares1978.elteoremadelmorfi"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
