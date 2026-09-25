@@ -2,6 +2,7 @@ package com.trotabares1978.elteoremadelmorfi
 
 import android.content.Context
 import android.graphics.*
+import android.content.Intent
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.min
@@ -39,6 +40,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
     private var startedAt = 0L
     private var entered = false
     private var enteredAt = 0L
+    @Volatile private var masksReady = false
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
@@ -65,7 +67,16 @@ class MorfiImageIntroView(context: Context) : View(context) {
             stageMasks[i]?.recycle()
             stageMasks[i] = null
         }
-        buildStageMasks()
+        // No bloquear el primer frame: la generación de máscaras es trabajo de CPU.
+        // Se prepara en segundo plano para que el fondo aparezca inmediatamente.
+        masksReady = false
+        Thread {
+            buildStageMasks()
+            post {
+                masksReady = true
+                invalidate()
+            }
+        }.start()
     }
 
     override fun onDraw(c: Canvas) {
@@ -104,11 +115,13 @@ class MorfiImageIntroView(context: Context) : View(context) {
             imagePaint.alpha = 255
         }
 
-        drawStage(c, d, stageMasks[0], roadAmount)
-        drawStage(c, d, stageMasks[1], placesAmount)
-        drawStage(c, d, stageMasks[2], matiasAmount)
-        drawTitleStage(c, d, stageMasks[3], titleAmount)
-        drawStage(c, d, stageMasks[4], enterAmount)
+        if (masksReady) {
+            drawStage(c, d, stageMasks[0], roadAmount)
+            drawStage(c, d, stageMasks[1], placesAmount)
+            drawStage(c, d, stageMasks[2], matiasAmount)
+            drawTitleStage(c, d, stageMasks[3], titleAmount)
+            drawStage(c, d, stageMasks[4], enterAmount)
+        }
      }
 
     private fun drawTitleStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
@@ -180,13 +193,24 @@ class MorfiImageIntroView(context: Context) : View(context) {
                     val by = (y / sy).toInt().coerceIn(0, bh - 1)
                     val f = finalPixels[y * fw + x]
                     val b = backgroundBitmap.getPixel(bx, by)
-                    val dist = kotlin.math.abs(Color.red(f) - Color.red(b)) +
-                        kotlin.math.abs(Color.green(f) - Color.green(b)) +
-                        kotlin.math.abs(Color.blue(f) - Color.blue(b))
-                    val alpha = when {
-                        dist >= 120 -> 255
-                        dist >= 75 -> ((dist - 75) * 255 / 45).coerceIn(0, 255)
-                        else -> 0
+                    val alpha = if (index == 3) {
+                        // Título: máscara basada en tinta oscura, no en diferencia
+                        // con el fondo. Así aparecen TODAS las letras juntas.
+                        val lum = (0.299f * Color.red(f) + 0.587f * Color.green(f) + 0.114f * Color.blue(f))
+                        when {
+                            lum <= 105f -> 255
+                            lum <= 165f -> ((165f - lum) * 255f / 60f).toInt().coerceIn(0, 255)
+                            else -> 0
+                        }
+                    } else {
+                        val dist = kotlin.math.abs(Color.red(f) - Color.red(b)) +
+                            kotlin.math.abs(Color.green(f) - Color.green(b)) +
+                            kotlin.math.abs(Color.blue(f) - Color.blue(b))
+                        when {
+                            dist >= 120 -> 255
+                            dist >= 75 -> ((dist - 75) * 255 / 45).coerceIn(0, 255)
+                            else -> 0
+                        }
                     }
                     pixels[y * fw + x] = Color.argb(alpha, 255, 255, 255)
                 }
@@ -641,7 +665,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        if (e.action == MotionEvent.ACTION_UP && !entered) {
+        if (e.action == MotionEvent.ACTION_UP && !entered && masksReady) {
             val t = (System.currentTimeMillis() - startedAt) / 1000f
             val d = fitRect(width.toFloat(), height.toFloat())
             val button = RectF(
@@ -650,10 +674,10 @@ class MorfiImageIntroView(context: Context) : View(context) {
                 d.left + d.width() * .790f,
                 d.top + d.height() * .975f
             )
-            if (t >= 5.10f && button.contains(e.x, e.y)) {
+            if (t >= 4.95f && button.contains(e.x, e.y)) {
                 entered = true
-                enteredAt = System.currentTimeMillis()
-                postInvalidateOnAnimation()
+                context.startActivity(Intent(context, MenuActivity::class.java))
+                if (context is android.app.Activity) context.finish()
             }
         }
         return true
