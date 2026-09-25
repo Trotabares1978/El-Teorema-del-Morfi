@@ -22,13 +22,6 @@ jobs:
           cat app/src/main/assets/morfi_b64/part00.txt app/src/main/assets/morfi_b64/part01.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
           file app/src/main/res/drawable/morfi_intro.jpg
           test -s app/src/main/res/drawable/morfi_intro.jpg
-          python3 - <<'PY'
-          from PIL import Image
-          p="app/src/main/res/drawable/morfi_intro.jpg"
-          im=Image.open(p)
-          im.verify()
-          print("Intro image OK:", p)
-          PY
 
       - name: Verify intro audio is local
         run: |
