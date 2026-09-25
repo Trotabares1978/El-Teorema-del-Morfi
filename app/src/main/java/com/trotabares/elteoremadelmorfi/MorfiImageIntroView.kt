@@ -21,6 +21,10 @@ class MorfiImageIntroView(context: Context) : View(context) {
         BitmapFactory.decodeResource(resources, R.drawable.morfi_intro)
             ?: error("No se pudo cargar la ilustración del Morfi")
 
+    private val backgroundBitmap: Bitmap =
+        BitmapFactory.decodeResource(resources, R.drawable.morfi_background)
+            ?: error("No se pudo cargar el fondo del Morfi")
+
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
     private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -30,6 +34,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
     private var brushBitmap: Bitmap? = null
     private var maskCanvas: Canvas? = null
     private var brushCanvas: Canvas? = null
+    private var stageMasks: Array<Bitmap?> = arrayOfNulls(5)
 
     private var startedAt = 0L
     private var entered = false
@@ -56,6 +61,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         maskCanvas = Canvas(maskBitmap!!)
         brushCanvas = Canvas(brushBitmap!!)
 
+        for (i in stageMasks.indices) {
+            stageMasks[i]?.recycle()
+            stageMasks[i] = null
+        }
+        buildStageMasks()
     }
 
     override fun onDraw(c: Canvas) {
@@ -78,35 +88,92 @@ class MorfiImageIntroView(context: Context) : View(context) {
 
     private fun drawOpening(c: Canvas, t: Float) {
         val d = fitRect(width.toFloat(), height.toFloat())
-        val master = maskCanvas ?: return
+        val bg = backgroundBitmap
 
-        // 1) Fondo: una capa completa e independiente. No se revela la imagen
-        // final acá, por lo tanto jamás aparecen "agujeros" blancos.
-        clear(master)
-        addBackgroundLayer(master, c, d, ease((t - 0.00f) / 2.20f))
+        // Estados completos y acumulativos. Nada se descubre por barridos.
+        val backgroundAmount = ease((t - 0.00f) / 1.60f)
+        val roadAmount = ease((t - 1.45f) / 0.75f)
+        val placesAmount = ease((t - 2.35f) / 0.85f)
+        val matiasAmount = ease((t - 3.30f) / 0.85f)
+        val titleAmount = ease((t - 4.25f) / 0.75f)
+        val enterAmount = ease((t - 5.15f) / 0.70f)
 
-        // 2) Camino: es el primer elemento que se materializa sobre el fondo.
-        addRoad(master, d, ease((t - 1.90f) / 2.10f))
+        if (backgroundAmount > 0f) {
+            imagePaint.alpha = (255f * backgroundAmount).toInt()
+            c.drawBitmap(bg, null, d, imagePaint)
+            imagePaint.alpha = 255
+        }
 
-        // 3) Los cuatro lugares aparecen juntos, como elementos independientes.
-        val places = ease((t - 3.75f) / 1.65f)
-        addObject(master, c, d, places, ::astilleroPath)
-        addObject(master, c, d, places, ::pizzeriaPath)
-        addObject(master, c, d, places, ::clinicPath)
-        addObject(master, c, d, places, ::schoolPath)
+        drawStage(c, d, stageMasks[0], roadAmount)
+        drawStage(c, d, stageMasks[1], placesAmount)
+        drawStage(c, d, stageMasks[2], matiasAmount)
+        drawStage(c, d, stageMasks[3], titleAmount)
+        drawStage(c, d, stageMasks[4], enterAmount)
 
-        // 4) Matías aparece después de los lugares.
-        addObject(master, c, d, ease((t - 5.55f) / 1.55f), ::matiasPath)
+        if (t >= 6.05f) c.drawBitmap(bitmap, null, d, imagePaint)
+        if (t < 6.35f) postInvalidateOnAnimation()
+    }
 
-        // 5) Título y, por último, el botón Entrar.
-        addObject(master, c, d, ease((t - 6.65f) / 0.80f), ::titlePath)
-        addObject(master, c, d, ease((t - 7.45f) / 0.90f), ::enterPath)
+    private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
+        if (mask == null || amount <= 0f) return
+        val save = c.saveLayer(d, null)
+        imagePaint.alpha = 255
+        c.drawBitmap(bitmap, null, d, imagePaint)
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.alpha = (255f * amount.coerceIn(0f, 1f)).toInt()
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        c.drawBitmap(mask, null, d, maskPaint)
+        maskPaint.xfermode = null
+        c.restoreToCount(save)
+        maskPaint.alpha = 255
+    }
 
-        drawMasked(c, d)
+    private fun buildStageMasks() {
+        val fw = bitmap.width
+        val fh = bitmap.height
+        val bw = backgroundBitmap.width
+        val bh = backgroundBitmap.height
+        val sx = fw.toFloat() / bw.toFloat()
+        val sy = fh.toFloat() / bh.toFloat()
+        val regions = arrayOf(
+            RectF(.00f, .38f, 1.00f, 1.00f),
+            RectF(.00f, .28f, 1.00f, .70f),
+            RectF(.08f, .48f, .72f, 1.00f),
+            RectF(.05f, .00f, .95f, .33f),
+            RectF(.18f, .82f, .82f, 1.00f)
+        )
+        val finalPixels = IntArray(fw * fh)
+        bitmap.getPixels(finalPixels, 0, fw, 0, 0, fw, fh)
 
-        if (t >= 8.70f) c.drawBitmap(bitmap, null, d, imagePaint)
-
-        if (t < 9.10f) postInvalidateOnAnimation()
+        for (index in regions.indices) {
+            val mask = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888)
+            val pixels = IntArray(fw * fh)
+            val region = regions[index]
+            for (y in 0 until fh) {
+                val yn = y.toFloat() / fh
+                if (yn < region.top || yn > region.bottom) continue
+                for (x in 0 until fw) {
+                    val xn = x.toFloat() / fw
+                    if (xn < region.left || xn > region.right) continue
+                    val bx = (x / sx).toInt().coerceIn(0, bw - 1)
+                    val by = (y / sy).toInt().coerceIn(0, bh - 1)
+                    val f = finalPixels[y * fw + x]
+                    val b = backgroundBitmap.getPixel(bx, by)
+                    val dist = kotlin.math.abs(Color.red(f) - Color.red(b)) +
+                        kotlin.math.abs(Color.green(f) - Color.green(b)) +
+                        kotlin.math.abs(Color.blue(f) - Color.blue(b))
+                    val alpha = when {
+                        dist >= 120 -> 255
+                        dist >= 75 -> ((dist - 75) * 255 / 45).coerceIn(0, 255)
+                        else -> 0
+                    }
+                    pixels[y * fw + x] = Color.argb(alpha, 255, 255, 255)
+                }
+            }
+            mask.setPixels(pixels, 0, fw, 0, 0, fw, fh)
+            stageMasks[index] = mask
+        }
     }
 
     /**
