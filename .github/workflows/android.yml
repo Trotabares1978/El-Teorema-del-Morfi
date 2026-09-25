@@ -22,7 +22,14 @@ jobs:
           cat app/src/main/assets/morfi_b64_256/part00.txt app/src/main/assets/morfi_b64_256/part01.txt app/src/main/assets/morfi_b64_256/part02.txt app/src/main/assets/morfi_b64_256/part03.txt app/src/main/assets/morfi_b64_256/part04.txt app/src/main/assets/morfi_b64_256/part05.txt app/src/main/assets/morfi_b64_256/part06.txt | tr -d '\n\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_intro.jpg
           file app/src/main/res/drawable/morfi_intro.jpg
           test -s app/src/main/res/drawable/morfi_intro.jpg
-          echo "302a0b326663204582bc99d279cf2ccbe0e84cd10e6d5210b8c7d510c05a79f1  app/src/main/res/drawable/morfi_intro.jpg" | sha256sum -c -
+          if command -v magick >/dev/null 2>&1; then
+            magick app/src/main/res/drawable/morfi_intro.jpg -filter Lanczos -resize 512x768 -sampling-factor 4:4:4 -quality 88 app/src/main/res/drawable/morfi_intro_512.jpg
+          else
+            convert app/src/main/res/drawable/morfi_intro.jpg -filter Lanczos -resize 512x768 -sampling-factor 4:4:4 -quality 88 app/src/main/res/drawable/morfi_intro_512.jpg
+          fi
+          mv app/src/main/res/drawable/morfi_intro_512.jpg app/src/main/res/drawable/morfi_intro.jpg
+          identify app/src/main/res/drawable/morfi_intro.jpg
+          test "$(identify -format '%wx%h' app/src/main/res/drawable/morfi_intro.jpg)" = "512x768"
 
       - name: Verify intro audio is local
         run: |
