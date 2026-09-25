@@ -1,4 +1,4 @@
-package com.trotabares1978.elteoremadelmorfi
+package com.trotabares.elteoremadelmorfi
 
 import android.content.Context
 import android.graphics.*
