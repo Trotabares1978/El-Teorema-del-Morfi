@@ -111,90 +111,140 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
 
     private fun drawFinalScene(c: Canvas, w: Float, h: Float, a: Float) {
         p.alpha = (255 * a).toInt()
-        p.shader = LinearGradient(0f, 0f, 0f, h * .62f,
-            Color.rgb(246, 205, 157), Color.rgb(226, 132, 93), Shader.TileMode.CLAMP)
+
+        // Pantalla principal definitiva: una ilustración navegable, no una interfaz genérica.
+        p.shader = LinearGradient(0f, 0f, 0f, h,
+            Color.rgb(244, 226, 191), Color.rgb(236, 242, 232), Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, p)
         p.shader = null
 
-        p.color = Color.rgb(235, 164, 104)
-        c.drawCircle(w*.76f, h*.25f, min(w,h)*.09f, p)
-
-        p.color = Color.rgb(70,108,118)
-        c.drawRect(0f,h*.49f,w,h,p)
-
-        p.color = Color.rgb(111,82,58)
+        // Río y costa de Ensenada.
+        p.color = Color.rgb(91, 151, 160)
+        c.drawRect(0f, h*.43f, w, h, p)
+        p.color = Color.rgb(111, 145, 91)
         path.reset()
-        path.moveTo(w*.44f,h*.49f); path.lineTo(w*.56f,h*.49f)
-        path.lineTo(w*.70f,h); path.lineTo(w*.27f,h); path.close()
+        path.moveTo(0f,h*.41f); path.quadTo(w*.22f,h*.38f,w*.42f,h*.42f)
+        path.quadTo(w*.68f,h*.39f,w,h*.42f); path.lineTo(w,h*.52f); path.lineTo(0f,h*.52f); path.close()
         c.drawPath(path,p)
 
-        p.color = Color.rgb(157,108,65)
-        for (i in 0..8) {
-            val x=w*(.46f+i*.015f)
-            c.drawRect(x,h*.50f,x+w*.008f,h,p)
-        }
+        // Sol.
+        p.color = Color.rgb(239, 178, 76)
+        c.drawCircle(w*.79f,h*.18f,min(w,h)*.075f,p)
 
-        p.color = Color.rgb(55,63,65)
-        c.drawRect(w*.05f,h*.39f,w*.30f,h*.49f,p)
+        // Astillero al fondo.
+        p.color = Color.rgb(62,66,63)
+        c.drawRect(w*.05f,h*.34f,w*.28f,h*.43f,p)
+        p.strokeWidth=maxOf(2f,w*.005f)
         p.style=Paint.Style.STROKE
-        p.strokeWidth=maxOf(2f,w*.006f)
-        c.drawLine(w*.10f,h*.39f,w*.18f,h*.22f,p)
-        c.drawLine(w*.18f,h*.22f,w*.27f,h*.39f,p)
+        c.drawLine(w*.08f,h*.34f,w*.18f,h*.22f,p)
+        c.drawLine(w*.18f,h*.22f,w*.27f,h*.34f,p)
+        c.drawLine(w*.18f,h*.22f,w*.18f,h*.39f,p)
         p.style=Paint.Style.FILL
 
-        p.color=Color.rgb(218,218,204)
+        // Barco.
+        p.color=Color.rgb(225,226,216)
         path.reset()
-        path.moveTo(w*.30f,h*.45f); path.lineTo(w*.58f,h*.45f)
-        path.lineTo(w*.53f,h*.50f); path.lineTo(w*.35f,h*.50f); path.close()
+        path.moveTo(w*.30f,h*.405f); path.lineTo(w*.53f,h*.405f)
+        path.lineTo(w*.49f,h*.45f); path.lineTo(w*.35f,h*.45f); path.close()
         c.drawPath(path,p)
-        p.color=Color.rgb(58,65,67)
-        c.drawRect(w*.37f,h*.40f,w*.47f,h*.45f,p)
+        p.color=Color.rgb(52,60,62)
+        c.drawRect(w*.36f,h*.36f,w*.46f,h*.405f,p)
 
-        p.color=Color.rgb(161,88,58)
-        c.drawRect(w*.67f,h*.40f,w*.90f,h*.50f,p)
-        p.color=Color.rgb(93,58,43)
+        // Pizzería.
+        p.color=Color.rgb(165,92,57)
+        c.drawRect(w*.70f,h*.34f,w*.92f,h*.46f,p)
+        p.color=Color.rgb(82,56,42)
         path.reset()
-        path.moveTo(w*.64f,h*.40f); path.lineTo(w*.785f,h*.31f); path.lineTo(w*.93f,h*.40f); path.close()
+        path.moveTo(w*.67f,h*.34f); path.lineTo(w*.81f,h*.275f); path.lineTo(w*.95f,h*.34f); path.close()
         c.drawPath(path,p)
-        p.color=Color.rgb(244,201,92)
+        p.color=Color.rgb(244,201,89)
         p.textAlign=Paint.Align.CENTER
         p.typeface=Typeface.DEFAULT_BOLD
-        p.textSize=w*.032f
-        c.drawText("PIZZA",w*.785f,h*.445f,p)
+        p.textSize=w*.026f
+        c.drawText("PIZZERÍA",w*.81f,h*.37f,p)
 
-        val baseY=h*.91f
+        // Camino protagonista.
+        p.color=Color.rgb(154,119,79)
+        path.reset()
+        path.moveTo(w*.46f,h*.44f); path.lineTo(w*.54f,h*.44f)
+        path.lineTo(w*.88f,h); path.lineTo(w*.12f,h); path.close()
+        c.drawPath(path,p)
+        p.color=Color.rgb(226,197,126)
+        p.style=Paint.Style.STROKE
+        p.strokeWidth=maxOf(2f,w*.009f)
+        path.reset()
+        path.moveTo(w*.50f,h*.45f); path.lineTo(w*.51f,h*.54f); path.lineTo(w*.55f,h*.70f); path.lineTo(w*.60f,h)
+        c.drawPath(path,p)
+        p.style=Paint.Style.FILL
+
+        // Matías, pequeño y reconocible, en primer plano.
+        val my=h*.82f
         p.color=Color.rgb(39,55,70)
-        c.drawRect(w*.455f,baseY-h*.18f,w*.545f,baseY,p)
+        c.drawRect(w*.455f,my,w*.495f,my+h*.16f,p)
+        c.drawRect(w*.505f,my,w*.545f,my+h*.16f,p)
         p.color=Color.rgb(196,69,47)
-        c.drawRoundRect(w*.40f,baseY-h*.32f,w*.60f,baseY-h*.10f,28f,28f,p)
+        c.drawRoundRect(w*.425f,my-h*.15f,w*.575f,my+h*.02f,22f,22f,p)
         p.color=Color.rgb(224,164,116)
-        c.drawCircle(w*.50f,baseY-h*.39f,w*.075f,p)
+        c.drawCircle(w*.50f,my-h*.20f,w*.062f,p)
         p.color=Color.rgb(43,34,30)
         path.reset()
-        path.moveTo(w*.425f,baseY-h*.39f)
-        path.cubicTo(w*.43f,baseY-h*.48f,w*.55f,baseY-h*.49f,w*.58f,baseY-h*.40f)
-        path.lineTo(w*.54f,baseY-h*.37f); path.lineTo(w*.50f,baseY-h*.42f)
-        path.lineTo(w*.46f,baseY-h*.37f); path.close()
+        path.moveTo(w*.44f,my-h*.205f)
+        path.cubicTo(w*.44f,my-h*.30f,w*.55f,my-h*.31f,w*.57f,my-h*.22f)
+        path.lineTo(w*.54f,my-h*.245f); path.lineTo(w*.51f,my-h*.22f)
+        path.lineTo(w*.48f,my-h*.25f); path.lineTo(w*.45f,my-h*.22f); path.close()
         c.drawPath(path,p)
+        p.color=Color.rgb(45,35,31)
+        c.drawCircle(w*.478f,my-h*.20f,w*.005f,p)
+        c.drawCircle(w*.522f,my-h*.20f,w*.005f,p)
 
-        p.color=Color.rgb(128,91,61)
-        c.drawOval(w*.60f,baseY-h*.16f,w*.76f,baseY-h*.03f,p)
-        c.drawCircle(w*.73f,baseY-h*.13f,w*.055f,p)
-
-        drawSign(c,w*.08f,h*.69f,"MORFI",a)
-        drawSign(c,w*.08f,h*.77f,"EUREKA",a)
-        drawSign(c,w*.82f,h*.68f,"DETECTIVES",a)
-        drawSign(c,w*.82f,h*.76f,"LABORATORIO",a)
-
-        p.color=Color.rgb(60,45,35)
+        // Título, como portada.
+        p.color=Color.rgb(54,43,32)
         p.textAlign=Paint.Align.CENTER
         p.typeface=Typeface.create("sans-serif-condensed",Typeface.BOLD)
-        p.textSize=w*.068f
-        c.drawText("EL TEOREMA DEL MORFI",w*.50f,h*.085f,p)
-        p.typeface=Typeface.DEFAULT
-        p.textSize=w*.036f
-        c.drawText("Más que un libro",w*.50f,h*.125f,p)
+        p.textSize=w*.065f
+        c.drawText("EL TEOREMA",w*.50f,h*.075f,p)
+        p.textSize=w*.074f
+        c.drawText("DEL MORFI",w*.50f,h*.135f,p)
+        p.typeface=Typeface.create("sans-serif",Typeface.NORMAL)
+        p.textSize=w*.028f
+        p.color=Color.rgb(92,72,54)
+        c.drawText("Más que un libro · el mundo de Matías",w*.50f,h*.17f,p)
+
+        // Paneles de navegación integrados en la escena.
+        drawMenuCard(c,w,h,w*.035f,h*.53f,w*.285f,h*.635f,"🍕","MORFI",Color.rgb(180,82,48))
+        drawMenuCard(c,w,h,w*.035f,h*.655f,w*.285f,h*.76f,"⚓","¡EUREKA!",Color.rgb(55,112,127))
+        drawMenuCard(c,w,h,w*.715f,h*.53f,w*.965f,h*.635f,"🔎","DETECTIVES",Color.rgb(86,93,69))
+        drawMenuCard(c,w,h,w*.715f,h*.655f,w*.965f,h*.76f,"🧪","LABORATORIO",Color.rgb(116,76,59))
+
+        p.alpha=(210*a).toInt()
+        p.color=Color.WHITE
+        c.drawRoundRect(w*.31f,h*.785f,w*.69f,h*.855f,24f,24f,p)
+        p.color=Color.rgb(57,53,47)
+        p.textSize=w*.030f
+        p.typeface=Typeface.DEFAULT_BOLD
+        c.drawText("🦠  EL MUNDO INVISIBLE     🔢  NÚMEROS     🚢  BARCOS",
+            w*.50f,h*.828f,p)
+
+        p.color=Color.rgb(82,111,66)
+        c.drawRoundRect(w*.34f,h*.885f,w*.66f,h*.95f,24f,24f,p)
+        p.color=Color.WHITE
+        p.textSize=w*.030f
+        c.drawText("GALERÍA  ·  PERSONAJES  ·  MAPA",w*.50f,h*.925f,p)
         p.alpha=255
+    }
+
+    private fun drawMenuCard(c: Canvas,w:Float,h:Float,l:Float,t:Float,r:Float,b:Float,icon:String,label:String,fill:Int) {
+        p.color=Color.WHITE
+        c.drawRoundRect(l+3f,t+5f,r+3f,b+5f,18f,18f,p)
+        p.color=fill
+        c.drawRoundRect(l,t,r,b,18f,18f,p)
+        p.color=Color.WHITE
+        p.textAlign=Paint.Align.CENTER
+        p.typeface=Typeface.DEFAULT_BOLD
+        p.textSize=w*.048f
+        c.drawText(icon,(l+r)/2f,t+(b-t)*.48f,p)
+        p.textSize=w*.026f
+        c.drawText(label,(l+r)/2f,b-(b-t)*.16f,p)
     }
 
     private fun drawSign(c: Canvas,x: Float,y: Float,label: String,a: Float) {
