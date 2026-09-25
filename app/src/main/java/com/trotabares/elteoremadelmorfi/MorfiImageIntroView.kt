@@ -96,6 +96,8 @@ class MorfiImageIntroView(context: Context) : View(context) {
         addObject(master, c, d, ease((t - 12.15f) / 1.30f), ::titlePath, diagonal = false)
         addObject(master, c, d, ease((t - 13.20f) / 1.10f), ::enterPath, diagonal = true)
 
+        drawMasked(c, d)
+
         if (t >= 14.55f) c.drawBitmap(bitmap, null, d, imagePaint)
 
         if (t < 15.8f) postInvalidateOnAnimation()
@@ -229,6 +231,59 @@ class MorfiImageIntroView(context: Context) : View(context) {
 
         clipBrushToPath(brush, path)
         addBrushToMaster(master, brush)
+    }
+
+    private fun paintStroke(
+        canvas: Canvas,
+        d: RectF,
+        x0: Float,
+        y: Float,
+        x1: Float,
+        amount: Float,
+        strokeWidth: Float,
+        wobble: Float
+    ) {
+        val yy = d.top + d.height() * y
+        val p = Path()
+        p.moveTo(d.left + d.width() * x0, yy + wobble)
+        p.cubicTo(
+            d.left + d.width() * (x0 + (x1 - x0) * .32f), yy - wobble,
+            d.left + d.width() * (x0 + (x1 - x0) * .68f), yy + wobble,
+            d.left + d.width() * (x0 + (x1 - x0) * amount), yy
+        )
+        val q = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+            this.strokeWidth = strokeWidth
+            maskFilter = BlurMaskFilter(maxOf(1f, strokeWidth * .16f), BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.drawPath(p, q)
+    }
+
+    private fun paintDiagonalStroke(canvas: Canvas, box: RectF, index: Int, amount: Float) {
+        val u = index / 17f
+        val p = Path()
+        val x0 = box.left - box.width() * .12f + box.width() * u * .10f
+        val y0 = box.top + box.height() * (u + .10f)
+        val x1 = box.right + box.width() * .08f
+        val y1 = box.bottom - box.height() * (.12f - u * .08f)
+        p.moveTo(x0, y0)
+        p.cubicTo(
+            x0 + box.width() * .28f, y0 + box.height() * .10f,
+            x1 - box.width() * .28f, y1 - box.height() * .10f,
+            x0 + (x1 - x0) * amount, y0 + (y1 - y0) * amount
+        )
+        val q = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+            strokeWidth = maxOf(2f, box.height() * (.028f + (index % 3) * .008f))
+            maskFilter = BlurMaskFilter(maxOf(1f, box.height() * .14f), BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.drawPath(p, q)
     }
 
     private fun drawMovingContour(c: Canvas, path: Path, amount: Float, box: RectF) {
