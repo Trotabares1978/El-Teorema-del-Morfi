@@ -156,10 +156,14 @@ class MorfiImageIntroView(context: Context) : View(context) {
         base.drawPath(pathFactory(d), maskPaint)
 
         // Soft directional "paint" passing over the object's own silhouette.
-        val box = pathFactory(d).computeBounds(RectF(), true).let { b ->
-            RectF(b.left - d.width()*.02f, b.top - d.height()*.02f,
-                b.right + d.width()*.02f, b.bottom + d.height()*.02f)
-        }
+        val rawBox = RectF()
+        pathFactory(d).computeBounds(rawBox, true)
+        val box = RectF(
+            rawBox.left - d.width()*.02f,
+            rawBox.top - d.height()*.02f,
+            rawBox.right + d.width()*.02f,
+            rawBox.bottom + d.height()*.02f
+        )
         val sweep = when {
             direction < .45f -> directionSweep(brush, box, amount, true)
             direction < .60f -> directionSweep(brush, box, amount, false)
