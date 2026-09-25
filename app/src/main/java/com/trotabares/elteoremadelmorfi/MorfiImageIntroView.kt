@@ -315,7 +315,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
         .395f to .502f, .424f to .483f, .455f to .463f, .486f to .448f,
         .518f to .438f, .549f to .448f, .574f to .466f, .600f to .491f,
         .619f to .521f, .638f to .549f, .656f to .579f, .660f to .611f,
-        .650f to .635f, .633f to .658f, .617f to .680f, .604f to .704f,
+        .650f to .635f, .633f to .658f, .617f to .680f, 0.604f to .704f,
         .588f to .733f, .573f to .761f, .559f to .792f, .543f to .825f,
         .528f to .861f, .518f to .892f, .508f to .929f, .488f to 1.0f,
         .229f to 1.0f, .217f to .974f, .199f to .949f, .187f to .930f,
