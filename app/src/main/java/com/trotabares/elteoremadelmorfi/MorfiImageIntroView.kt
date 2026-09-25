@@ -57,11 +57,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val d = fitRect(width.toFloat(), height.toFloat())
         c.drawBitmap(backgroundBitmap, null, d, imagePaint)
         if (!masksReady) return
-        drawStage(c, d, stageMasks[0], fade((t-.30f)/.65f))
-        drawStage(c, d, stageMasks[1], fade((t-.95f)/.90f))
-        drawStage(c, d, stageMasks[2], fade((t-1.80f)/.90f))
-        drawStage(c, d, stageMasks[3], fade((t-2.70f)/1.10f))
-        drawStage(c, d, stageMasks[4], fade((t-3.95f)/.70f))
+        drawStage(c, d, stageMasks[0], fade((t-.80f)/1.80f))
+        drawStage(c, d, stageMasks[1], fade((t-2.65f)/1.80f))
+        drawStage(c, d, stageMasks[2], fade((t-4.55f)/1.80f))
+        drawStage(c, d, stageMasks[3], fade((t-6.45f)/1.50f))
+        drawStage(c, d, stageMasks[4], fade((t-8.10f)/1.00f))
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
@@ -85,7 +85,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
             RectF(0f,.38f,1f,1f),
             RectF(0f,.28f,1f,.70f),
             RectF(.08f,.48f,.72f,1f),
-            RectF(.05f,.04f,.95f,.275f),
+            RectF(.05f,.025f,.95f,.255f),
             RectF(.18f,.82f,.82f,1f)
         )
         for(index in regions.indices){
@@ -129,7 +129,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
             val t=(System.currentTimeMillis()-startedAt)/1000f
             val d=fitRect(width.toFloat(),height.toFloat())
             val b=RectF(d.left+d.width()*.215f,d.top+d.height()*.842f,d.left+d.width()*.790f,d.top+d.height()*.975f)
-            if(t>=3.95f && b.contains(e.x,e.y)){
+            if(t>=8.10f && b.contains(e.x,e.y)){
                 entered=true
                 context.startActivity(Intent(context,MenuActivity::class.java))
                 (context as? Activity)?.finish()
