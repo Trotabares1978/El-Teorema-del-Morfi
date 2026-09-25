@@ -95,8 +95,8 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val roadAmount = fade((t - 0.70f) / 1.20f)
         val placesAmount = fade((t - 1.85f) / 1.45f)
         val matiasAmount = fade((t - 3.25f) / 1.30f)
-        val titleAmount = fade((t - 4.55f) / 1.15f)
-        val enterAmount = fade((t - 5.55f) / 1.05f)
+        val titleAmount = fade((t - 4.25f) / 1.85f)
+        val enterAmount = fade((t - 5.70f) / 1.20f)
 
         if (backgroundAmount > 0f) {
             imagePaint.alpha = (255f * backgroundAmount).toInt()
@@ -110,13 +110,13 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
 
-        val finalAmount = fade((t - 6.35f) / 1.40f)
+        val finalAmount = fade((t - 6.75f) / 1.55f)
         if (finalAmount > 0f) {
             imagePaint.alpha = (255f * finalAmount).toInt()
             c.drawBitmap(bitmap, null, d, imagePaint)
             imagePaint.alpha = 255
         }
-        if (t < 8.10f) postInvalidateOnAnimation()
+        if (t < 8.60f) postInvalidateOnAnimation()
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
@@ -559,7 +559,9 @@ class MorfiImageIntroView(context: Context) : View(context) {
     }
 
     private fun fitRect(w: Float, h: Float): RectF {
-        val s = min(w / bitmap.width, h / bitmap.height)
+        // Center-crop: la ilustración ocupa TODO el display, sin franjas
+        // blancas arriba/abajo ni a los costados.
+        val s = maxOf(w / bitmap.width, h / bitmap.height)
         val rw = bitmap.width * s
         val rh = bitmap.height * s
         return RectF((w - rw) / 2f, (h - rh) / 2f, (w + rw) / 2f, (h + rh) / 2f)
@@ -612,8 +614,9 @@ class MorfiImageIntroView(context: Context) : View(context) {
 
     private fun fade(x: Float): Float {
         val v = x.coerceIn(0f, 1f)
-        val s = v * v * (3f - 2f * v)
-        return s * s * (3f - 2f * s)
+        // Suave, pero con presencia desde el primer instante: evita los
+        // segundos de pantalla blanca y el efecto de "aparece de golpe".
+        return v * v * (3f - 2f * v)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
