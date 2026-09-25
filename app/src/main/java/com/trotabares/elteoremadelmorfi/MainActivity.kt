@@ -23,8 +23,8 @@ class MainActivity : Activity() {
             setVolume(0f, 0f)
             start()
             fadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 3500L
-                startDelay = 800L
+                duration = 1800L
+                startDelay = 0L
                 addUpdateListener { music?.setVolume(it.animatedValue as Float, it.animatedValue as Float) }
                 start()
             }
