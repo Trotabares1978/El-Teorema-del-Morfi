@@ -78,149 +78,110 @@ class MorfiImageIntroView(context: Context) : View(context) {
 
     private fun drawOpening(c: Canvas, t: Float) {
         val d = fitRect(width.toFloat(), height.toFloat())
+        val master = maskCanvas ?: return
 
-        // 1 — White paper -> sky, river and land.
-        revealLandscape(c, d, ease((t - 0.00f) / 4.80f))
+        // Rebuild one cumulative drawing mask every frame. This is important:
+        // nothing is "revealed" as a separate sticker; everything already drawn
+        // remains on the paper while the next strokes are added to it.
+        clear(master)
 
-        // 2 — The sun is sketched separately.
-        revealObject(c, d, ease((t - 2.15f) / 1.20f), ::sunPath, diagonal = false)
+        addLandscape(master, d, ease((t - 0.00f) / 5.30f), t)
+        addRoad(master, d, ease((t - 3.60f) / 2.70f))
 
-        // 3 — The road is drawn from the horizon toward the viewer.
-        revealRoad(c, d, ease((t - 3.70f) / 2.20f))
+        addObject(master, c, d, ease((t - 5.55f) / 1.55f), ::astilleroPath, diagonal = true)
+        addObject(master, c, d, ease((t - 6.70f) / 1.45f), ::pizzeriaPath, diagonal = false)
+        addObject(master, c, d, ease((t - 7.75f) / 1.40f), ::clinicPath, diagonal = true)
+        addObject(master, c, d, ease((t - 8.75f) / 1.55f), ::schoolPath, diagonal = false)
+        addObject(master, c, d, ease((t - 9.85f) / 2.45f), ::matiasPath, diagonal = true)
+        addObject(master, c, d, ease((t - 12.15f) / 1.30f), ::titlePath, diagonal = false)
+        addObject(master, c, d, ease((t - 13.20f) / 1.10f), ::enterPath, diagonal = true)
 
-        // 4 — Places arrive as little illustrated constructions.
-        revealObject(c, d, ease((t - 5.70f) / 1.35f), ::astilleroPath, diagonal = true)
-        revealObject(c, d, ease((t - 6.85f) / 1.25f), ::pizzeriaPath, diagonal = false)
-        revealObject(c, d, ease((t - 7.90f) / 1.20f), ::clinicPath, diagonal = true)
-        revealObject(c, d, ease((t - 8.90f) / 1.35f), ::schoolPath, diagonal = false)
+        if (t >= 14.55f) c.drawBitmap(bitmap, null, d, imagePaint)
 
-        // 5 — Matías is deliberately the last illustrated element.
-        revealObject(c, d, ease((t - 10.15f) / 2.15f), ::matiasPath, diagonal = true)
-
-        // 6 — Identity appears after the whole world exists.
-        revealObject(c, d, ease((t - 12.10f) / 1.15f), ::titlePath, diagonal = false)
-        revealObject(c, d, ease((t - 13.15f) / 1.00f), ::enterPath, diagonal = true)
-
-        if (t >= 14.45f) {
-            // A very short settling period leaves the exact original artwork.
-            c.drawBitmap(bitmap, null, d, imagePaint)
-        }
+        if (t < 15.8f) postInvalidateOnAnimation()
     }
 
-    /**
-     * Broad but irregular strokes. The stroke edges overlap, so the scene
-     * looks painted onto paper instead of being revealed by horizontal bars.
-     */
-    private fun revealLandscape(c: Canvas, d: RectF, amount: Float) {
+    /** Adds the broad background strokes to the cumulative mask. */
+    private fun addLandscape(master: Canvas, d: RectF, amount: Float, t: Float) {
         if (amount <= 0f) return
-        val base = maskCanvas ?: return
         val brush = brushCanvas ?: return
-
-        clear(base)
         clear(brush)
 
-        maskPaint.color = Color.WHITE
-        maskPaint.alpha = 255
-        base.drawRect(d, maskPaint)
+        val future = arrayOf(
+            sunPath(d), roadPath(d), astilleroPath(d), pizzeriaPath(d),
+            clinicPath(d), schoolPath(d), matiasPath(d), titlePath(d), enterPath(d)
+        )
 
-        // Later elements stay hidden while the landscape is being painted.
-        clearPath(base, sunPath(d))
-        clearPath(base, roadPath(d))
-        clearPath(base, astilleroPath(d))
-        clearPath(base, pizzeriaPath(d))
-        clearPath(base, clinicPath(d))
-        clearPath(base, schoolPath(d))
-        clearPath(base, matiasPath(d))
-        clearPath(base, titlePath(d))
-        clearPath(base, enterPath(d))
-
-        val rows = 30
+        val rows = 38
         val progress = amount.coerceIn(0f, 1f) * rows
-
         for (i in 0 until rows) {
             val local = (progress - i).coerceIn(0f, 1f)
             if (local <= 0f) continue
-
             val y = i / (rows - 1f)
-            val wobble = sin(i * 1.71f) * d.height() * .006f
-            val start = -.10f + sin(i * 2.31f) * .025f
-            val end = 1.08f + cos(i * 1.27f) * .025f
-
-            paintStroke(
-                brush,
-                d,
-                start,
-                y,
-                end,
-                local,
-                d.height() * (.025f + (i % 4) * .006f),
-                wobble
-            )
+            val wobble = sin(i * 1.71f + t * .55f) * d.height() * .0045f
+            val widthJitter = .018f + ((i * 17) % 5) * .004f
+            paintStroke(brush, d, -.08f, y, 1.08f, local,
+                d.height() * widthJitter, wobble)
         }
 
-        intersect(base, brush)
-        drawMasked(c, d)
+        // Remove future foreground zones from the landscape brush so they
+        // remain white until their own construction begins.
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.color = Color.WHITE
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+        for (p in future) brush.drawPath(p, maskPaint)
+        maskPaint.xfermode = null
+
+        // The sun gets a soft, incomplete pencil/paint pass of its own.
+        val sunAmount = ease((t - 2.0f) / 1.35f)
+        if (sunAmount > 0f) drawSoftObjectBrush(brush, d, sunPath(d), sunAmount, 8)
+
+        addBrushToMaster(master, brush)
     }
 
-    /**
-     * The road uses converging strokes, giving the impression that the
-     * illustrator is pulling it out of the horizon toward the viewer.
-     */
-    private fun revealRoad(c: Canvas, d: RectF, amount: Float) {
+    private fun addRoad(master: Canvas, d: RectF, amount: Float) {
         if (amount <= 0f) return
-
-        val base = maskCanvas ?: return
         val brush = brushCanvas ?: return
-
-        clear(base)
         clear(brush)
-
-        maskPaint.color = Color.WHITE
-        base.drawPath(roadPath(d), maskPaint)
-
+        val road = roadPath(d)
         val a = amount.coerceIn(0f, 1f)
-        val strokes = 16
 
+        // Multiple slightly wandering strokes, with no hard polygon edge.
+        val strokes = 20
         for (i in 0 until strokes) {
             val local = ((a * strokes) - i).coerceIn(0f, 1f)
             if (local <= 0f) continue
-
             val u = i / (strokes - 1f)
-            val horizonX = .5f + (u - .5f) * .035f
-            val bottomX = .5f + (u - .5f) * .70f
-            val y0 = .405f + u * .03f
-            val y1 = .48f + u * .52f
-
+            val hx = .5f + (u - .5f) * .035f
+            val bx = .5f + (u - .5f) * .74f
+            val y0 = .402f + u * .025f
+            val y1 = .49f + u * .51f
             val p = Path()
-            p.moveTo(d.left + d.width() * horizonX, d.top + d.height() * y0)
+            p.moveTo(d.left + d.width() * hx, d.top + d.height() * y0)
             p.cubicTo(
-                d.left + d.width() * (horizonX + (bottomX - horizonX) * .28f),
-                d.top + d.height() * (y0 + (y1 - y0) * .28f),
-                d.left + d.width() * (horizonX + (bottomX - horizonX) * .70f),
-                d.top + d.height() * (y0 + (y1 - y0) * .70f),
-                d.left + d.width() * (horizonX + (bottomX - horizonX) * local),
-                d.top + d.height() * (y0 + (y1 - y0) * local)
+                d.left + d.width() * (hx + (bx - hx) * .30f),
+                d.top + d.height() * (y0 + (y1-y0)*.30f),
+                d.left + d.width() * (hx + (bx - hx) * .68f),
+                d.top + d.height() * (y0 + (y1-y0)*.68f),
+                d.left + d.width() * (hx + (bx - hx) * local),
+                d.top + d.height() * (y0 + (y1-y0) * local)
             )
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            val pnt = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
                 style = Paint.Style.STROKE
                 strokeCap = Paint.Cap.ROUND
-                strokeWidth = d.height() * .035f
-                maskFilter = BlurMaskFilter(d.height() * .004f + 1f, BlurMaskFilter.Blur.NORMAL)
+                strokeWidth = d.height() * (.018f + (i % 4) * .004f)
+                maskFilter = BlurMaskFilter(d.height() * .006f + 1f, BlurMaskFilter.Blur.NORMAL)
             }
-            brush.drawPath(p, paint)
+            brush.drawPath(p, pnt)
         }
-
-        intersect(base, brush)
-        drawMasked(c, d)
+        clipBrushToPath(brush, road)
+        addBrushToMaster(master, brush)
     }
 
-    /**
-     * Objects are built in two passes: a faint hand-drawn contour first,
-     * followed by the colored illustration being brushed into existence.
-     */
-    private fun revealObject(
+    private fun addObject(
+        master: Canvas,
         c: Canvas,
         d: RectF,
         amount: Float,
@@ -228,43 +189,31 @@ class MorfiImageIntroView(context: Context) : View(context) {
         diagonal: Boolean
     ) {
         if (amount <= 0f) return
-
         val path = pathFactory(d)
-        val base = maskCanvas ?: return
-        val brush = brushCanvas ?: return
-
-        clear(base)
-        clear(brush)
-
-        maskPaint.color = Color.WHITE
-        base.drawPath(path, maskPaint)
-
         val box = RectF()
         path.computeBounds(box, true)
 
-        // A pencil-like contour gives the eye the feeling that the object is
-        // actually being drawn, instead of simply appearing.
-        drawSketchContour(c, path, box, amount)
+        // Instead of drawing a complete contour, only a moving pencil trace is
+        // shown. It fades as color accumulates, avoiding the "sticker outline".
+        drawMovingContour(c, path, amount, box)
 
-        val rows = 12
+        val brush = brushCanvas ?: return
+        clear(brush)
+
+        val rows = 18
         val progress = amount.coerceIn(0f, 1f) * rows
-
         for (i in 0 until rows) {
             val local = (progress - i).coerceIn(0f, 1f)
             if (local <= 0f) continue
 
-            val y = box.top + box.height() * (i / (rows - 1f))
-            val drift = sin(i * 2.4f) * box.width() * .025f
-
             if (!diagonal) {
+                val y = box.top + box.height() * (i / (rows - 1f))
+                val drift = sin(i * 2.4f) * box.width() * .035f
                 paintStroke(
                     brush,
                     RectF(box.left, box.top, box.right, box.bottom),
-                    -.08f,
-                    (y - box.top) / box.height(),
-                    1.08f,
-                    local,
-                    maxOf(box.height() * .055f, 2.5f),
+                    -.18f, (y-box.top)/box.height(), 1.18f, local,
+                    maxOf(box.height() * (.035f + (i % 3) * .012f), 2.2f),
                     drift
                 )
             } else {
@@ -272,89 +221,72 @@ class MorfiImageIntroView(context: Context) : View(context) {
             }
         }
 
-        intersect(base, brush)
-        drawMasked(c, d)
+        // A few translucent-looking dry-brush passes are simulated by narrow
+        // offset strokes. They break up the unnaturally perfect boundary.
+        if (amount > .18f) {
+            drawSoftObjectBrush(brush, d, path, ease((amount-.18f)/.82f), 7)
+        }
+
+        clipBrushToPath(brush, path)
+        addBrushToMaster(master, brush)
     }
 
-    private fun drawSketchContour(c: Canvas, path: Path, box: RectF, amount: Float) {
-        if (amount <= 0f) return
+    private fun drawMovingContour(c: Canvas, path: Path, amount: Float, box: RectF) {
+        val pm = PathMeasure(path, false)
+        val length = pm.length
+        if (length <= 0f) return
+        val segment = Path()
+        pm.getSegment(0f, length * amount.coerceIn(0f, 1f), segment, true)
 
-        outlinePaint.alpha = (72f * ease(amount)).toInt().coerceIn(0, 72)
-        outlinePaint.strokeWidth = maxOf(1.2f, box.width() * .006f)
-
-        // The full contour is deliberately faint; the final colored reveal
-        // remains the dominant visual.
-        c.drawPath(path, outlinePaint)
+        outlinePaint.alpha = (34f * (1f - amount * .72f)).toInt().coerceIn(0, 34)
+        outlinePaint.strokeWidth = maxOf(1f, box.width() * .0035f)
+        c.drawPath(segment, outlinePaint)
         outlinePaint.alpha = 0
     }
 
-    private fun paintDiagonalStroke(canvas: Canvas, box: RectF, index: Int, amount: Float) {
-        val p = Path()
-        val count = 12f
-        val y = box.top + box.height() * (index / (count - 1f))
-        val x0 = box.left - box.width() * .20f
-        val x1 = box.left + box.width() * 1.20f
-
-        p.moveTo(x0, y - box.height() * .20f)
-        p.lineTo(
-            x0 + (x1 - x0) * amount,
-            y - box.height() * .20f + box.height() * .40f * amount
-        )
-
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-            strokeWidth = maxOf(box.height() * .08f, 3f)
-            maskFilter = BlurMaskFilter(maxOf(box.height() * .008f, 1f), BlurMaskFilter.Blur.NORMAL)
-        }
-        canvas.drawPath(p, paint)
-    }
-
-    private fun paintStroke(
+    private fun drawSoftObjectBrush(
         canvas: Canvas,
         d: RectF,
-        startX: Float,
-        y: Float,
-        endX: Float,
+        path: Path,
         amount: Float,
-        strokeWidth: Float,
-        wobble: Float
+        count: Int
     ) {
-        val p = Path()
-        val yy = d.top + d.height() * y
-        val x0 = d.left + d.width() * startX
-        val total = d.width() * (endX - startX)
-        val x1 = x0 + total * amount
-
-        p.moveTo(x0, yy)
-        p.cubicTo(
-            x0 + total * .18f,
-            yy - wobble,
-            x0 + total * .40f,
-            yy + wobble,
-            x0 + total * .60f,
-            yy
-        )
-        p.cubicTo(
-            x0 + total * .78f,
-            yy - wobble,
-            x0 + total * .92f,
-            yy + wobble,
-            x1,
-            yy + wobble * .5f
-        )
-
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-            strokeJoin = Paint.Join.ROUND
-            this.strokeWidth = strokeWidth
-            maskFilter = BlurMaskFilter(maxOf(strokeWidth * .16f, 1f), BlurMaskFilter.Blur.NORMAL)
+        val box = RectF()
+        path.computeBounds(box, true)
+        for (i in 0 until count) {
+            val y = box.top + box.height() * ((i + .5f) / count)
+            val p = Path()
+            val drift = sin(i * 1.9f) * box.width() * .045f
+            p.moveTo(box.left - box.width()*.12f, y + drift)
+            p.cubicTo(
+                box.left + box.width()*.30f, y - drift,
+                box.left + box.width()*.70f, y + drift,
+                box.right + box.width()*.12f * amount, y
+            )
+            val q = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                strokeWidth = maxOf(1.5f, box.height() * (.012f + (i%3)*.004f))
+                alpha = (115 + (i%4)*25).coerceAtMost(210)
+                maskFilter = BlurMaskFilter(maxOf(1f, box.height()*.004f), BlurMaskFilter.Blur.NORMAL)
+            }
+            canvas.drawPath(p, q)
         }
+    }
 
-        canvas.drawPath(p, paint)
+    private fun clipBrushToPath(brush: Canvas, path: Path) {
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.color = Color.WHITE
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        brush.drawPath(path, maskPaint)
+        maskPaint.xfermode = null
+    }
+
+    private fun addBrushToMaster(master: Canvas, brush: Canvas) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        master.drawBitmap(brushBitmap!!, 0f, 0f, p)
     }
 
     private fun drawMasked(c: Canvas, d: RectF) {
