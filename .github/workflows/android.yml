@@ -29,6 +29,17 @@ jobs:
           identify app/src/main/res/drawable/morfi_intro.jpg
           test "$(identify -format '%wx%h' app/src/main/res/drawable/morfi_intro.jpg)" = "512x768"
 
+      - name: Restore empty background for layered intro
+        run: |
+          set -euo pipefail
+          cat app/src/main/assets/morfi_background_b64/part00.txt app/src/main/assets/morfi_background_b64/part01.txt | tr -d '\\n\\r[:space:]' | base64 -d > app/src/main/res/drawable/morfi_background.webp
+          file app/src/main/res/drawable/morfi_background.webp
+          test -s app/src/main/res/drawable/morfi_background.webp
+          convert app/src/main/res/drawable/morfi_background.webp -filter Lanczos -resize 512x768 -quality 88 app/src/main/res/drawable/morfi_background.jpg
+          rm app/src/main/res/drawable/morfi_background.webp
+          identify app/src/main/res/drawable/morfi_background.jpg
+          test "$(identify -format '%wx%h' app/src/main/res/drawable/morfi_background.jpg)" = "512x768"
+
       - name: Verify intro audio is local
         run: |
           set -e
