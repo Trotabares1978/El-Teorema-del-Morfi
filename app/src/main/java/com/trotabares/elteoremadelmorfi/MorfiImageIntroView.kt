@@ -34,9 +34,19 @@ class MorfiImageIntroView(context: Context) : View(context) {
     }
 
     override fun onDraw(c: Canvas) {
-        if (startedAt == 0L) startedAt = System.currentTimeMillis()
         c.drawColor(Color.WHITE)
         if (!entered) {
+            // El reloj de la animación NO empieza hasta que las máscaras estén listas.
+            // Así evitamos que la pantalla pase del fondo directo a la ilustración completa
+            // mientras se están calculando las capas en segundo plano.
+            if (!masksReady) {
+                val d = fitRect(width.toFloat(), height.toFloat())
+                c.drawBitmap(backgroundBitmap, null, d, imagePaint)
+                postInvalidateOnAnimation()
+                return
+            }
+
+            if (startedAt == 0L) startedAt = System.currentTimeMillis()
             val t = (System.currentTimeMillis() - startedAt) / 1000f
             drawOpening(c, t)
             if (t < 7f) postInvalidateOnAnimation()
@@ -75,7 +85,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
             RectF(0f,.38f,1f,1f),
             RectF(0f,.28f,1f,.70f),
             RectF(.08f,.48f,.72f,1f),
-            RectF(.05f,0f,.95f,.33f),
+            RectF(.05f,.04f,.95f,.275f),
             RectF(.18f,.82f,.82f,1f)
         )
         for(index in regions.indices){
