@@ -89,11 +89,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         addRoad(master, d, ease((t - 3.60f) / 2.70f))
 
         // Independent objects: background -> road -> locations -> Matías -> controls.
-        addObject(master, c, d, ease((t - 5.55f) / 1.25f), ::astilleroPath, diagonal = true)
-        addObject(master, c, d, ease((t - 6.85f) / 1.15f), ::pizzeriaPath, diagonal = false)
-        addObject(master, c, d, ease((t - 8.05f) / 1.15f), ::clinicPath, diagonal = false)
-        addObject(master, c, d, ease((t - 9.25f) / 1.25f), ::schoolPath, diagonal = false)
-        addObject(master, c, d, ease((t - 10.60f) / 1.55f), ::matiasPath, diagonal = true)
+        addObject(master, c, d, ease((t - 5.50f) / 1.40f), ::astilleroPath, diagonal = true)
+        addObject(master, c, d, ease((t - 7.00f) / 1.25f), ::pizzeriaPath, diagonal = false)
+        addObject(master, c, d, ease((t - 8.35f) / 1.20f), ::clinicPath, diagonal = false)
+        addObject(master, c, d, ease((t - 9.65f) / 1.35f), ::schoolPath, diagonal = false)
+        addObject(master, c, d, ease((t - 11.15f) / 1.70f), ::matiasPath, diagonal = true)
         addObject(master, c, d, ease((t - 12.35f) / 1.10f), ::titlePath, diagonal = false)
         addObject(master, c, d, ease((t - 13.45f) / 1.00f), ::enterPath, diagonal = true)
 
@@ -183,20 +183,58 @@ class MorfiImageIntroView(context: Context) : View(context) {
         addBrushToMaster(master, brush)
     }
 
-    private fun addObject(master: Canvas,c: Canvas,d: RectF,amount: Float,pathFactory: (RectF)->Path,diagonal: Boolean) {
+    /**
+     * One object = one independent silhouette.
+     *
+     * The object is never revealed through its bounding rectangle. Only the
+     * actual Path of that object contributes alpha to the master mask. This
+     * keeps the buildings, Matías, etc. visually independent from one another.
+     */
+    private fun addObject(
+        master: Canvas,
+        c: Canvas,
+        d: RectF,
+        amount: Float,
+        pathFactory: (RectF) -> Path,
+        diagonal: Boolean
+    ) {
         if (amount <= 0f) return
-        val path=pathFactory(d); val box=RectF(); path.computeBounds(box,true); val a=amount.coerceIn(0f,1f)
-        val alpha=(255f*ease(a)).toInt().coerceIn(0,255)
-        val save=c.saveLayer(box,null)
-        imagePaint.alpha=alpha; c.drawBitmap(bitmap,null,d,imagePaint); imagePaint.alpha=255
-        maskPaint.reset(); maskPaint.isAntiAlias=true; maskPaint.color=Color.WHITE
-        maskPaint.xfermode=PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-        c.drawPath(path,maskPaint); maskPaint.xfermode=null; c.restoreToCount(save)
-        drawMovingContour(c,path,a,box)
-        val brush=brushCanvas ?: return
+
+        val path = pathFactory(d)
+        val box = RectF()
+        path.computeBounds(box, true)
+        val a = amount.coerceIn(0f, 1f)
+
+        val brush = brushCanvas ?: return
         clear(brush)
-        brush.drawPath(path,Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.WHITE;style=Paint.Style.FILL;this.alpha=alpha})
-        addBrushToMaster(master,brush)
+
+        // Soft opacity build-up inside THIS silhouette only.
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+            alpha = (255f * ease(a)).toInt().coerceIn(0, 255)
+        }
+        brush.drawPath(path, fill)
+
+        // A tiny feather around the real contour makes the object feel drawn
+        // onto paper rather than clipped out of a rectangle.
+        if (a < 1f) {
+            val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+                strokeWidth = maxOf(1.2f, box.width() * .0045f)
+                alpha = (70f * (1f - a)).toInt().coerceIn(0, 70)
+                maskFilter = BlurMaskFilter(maxOf(1f, strokeWidth * .8f), BlurMaskFilter.Blur.NORMAL)
+            }
+            brush.drawPath(path, edge)
+        }
+
+        addBrushToMaster(master, brush)
+
+        // The contour follows the object's actual silhouette, never its box.
+        drawMovingContour(c, path, a, box)
     }
 
     private fun paintStroke(
@@ -356,11 +394,60 @@ class MorfiImageIntroView(context: Context) : View(context) {
         .195f to 1.0f, .415f to .640f, .465f to .505f
     ))
 
-    private fun astilleroPath(d: RectF): Path { val p=Path(); p.moveTo(d.left,d.top+d.height()*.456f); p.lineTo(d.left,d.top+d.height()*.352f); p.lineTo(d.left+d.width()*.035f,d.top+d.height()*.352f); p.lineTo(d.left+d.width()*.059f,d.top+d.height()*.297f); p.cubicTo(d.left+d.width()*.078f,d.top+d.height()*.263f,d.left+d.width()*.096f,d.top+d.height()*.263f,d.left+d.width()*.100f,d.top+d.height()*.315f); p.cubicTo(d.left+d.width()*.121f,d.top+d.height()*.315f,d.left+d.width()*.127f,d.top+d.height()*.277f,d.left+d.width()*.146f,d.top+d.height()*.277f); p.cubicTo(d.left+d.width()*.150f,d.top+d.height()*.306f,d.left+d.width()*.172f,d.top+d.height()*.306f,d.left+d.width()*.172f,d.top+d.height()*.339f); p.cubicTo(d.left+d.width()*.195f,d.top+d.height()*.339f,d.left+d.width()*.199f,d.top+d.height()*.358f,d.left+d.width()*.234f,d.top+d.height()*.358f); p.cubicTo(d.left+d.width()*.266f,d.top+d.height()*.377f,d.left+d.width()*.289f,d.top+d.height()*.397f,d.left+d.width()*.289f,d.top+d.height()*.441f); p.lineTo(d.left+d.width()*.270f,d.top+d.height()*.456f); p.close(); return p }
-    private fun pizzeriaPath(d: RectF): Path { val p=Path(); p.moveTo(d.left,d.top+d.height()*.651f); p.lineTo(d.left,d.top+d.height()*.482f); p.cubicTo(d.left+d.width()*.08f,d.top+d.height()*.477f,d.left+d.width()*.17f,d.top+d.height()*.473f,d.left+d.width()*.217f,d.top+d.height()*.473f); p.cubicTo(d.left+d.width()*.235f,d.top+d.height()*.487f,d.left+d.width()*.262f,d.top+d.height()*.487f,d.left+d.width()*.262f,d.top+d.height()*.510f); p.cubicTo(d.left+d.width()*.282f,d.top+d.height()*.510f,d.left+d.width()*.293f,d.top+d.height()*.535f,d.left+d.width()*.293f,d.top+d.height()*.617f); p.lineTo(d.left+d.width()*.271f,d.top+d.height()*.651f); p.close(); return p }
-    private fun clinicPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.625f,d.top+d.height()*.517f); p.lineTo(d.left+d.width()*.625f,d.top+d.height()*.457f); p.cubicTo(d.left+d.width()*.645f,d.top+d.height()*.453f,d.left+d.width()*.675f,d.top+d.height()*.452f,d.left+d.width()*.697f,d.top+d.height()*.453f); p.cubicTo(d.left+d.width()*.716f,d.top+d.height()*.455f,d.left+d.width()*.732f,d.top+d.height()*.459f,d.left+d.width()*.732f,d.top+d.height()*.497f); p.cubicTo(d.left+d.width()*.715f,d.top+d.height()*.503f,d.left+d.width()*.700f,d.top+d.height()*.508f,d.left+d.width()*.625f,d.top+d.height()*.517f); p.close(); return p }
-    private fun schoolPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.758f,d.top+d.height()*.647f); p.lineTo(d.left+d.width()*.758f,d.top+d.height()*.594f); p.cubicTo(d.left+d.width()*.752f,d.top+d.height()*.574f,d.left+d.width()*.746f,d.top+d.height()*.559f,d.left+d.width()*.746f,d.top+d.height()*.547f); p.cubicTo(d.left+d.width()*.752f,d.top+d.height()*.530f,d.left+d.width()*.760f,d.top+d.height()*.512f,d.left+d.width()*.766f,d.top+d.height()*.492f); p.cubicTo(d.left+d.width()*.825f,d.top+d.height()*.490f,d.left+d.width()*.930f,d.top+d.height()*.491f,d.right,d.top+d.height()*.492f); p.lineTo(d.right,d.top+d.height()*.647f); p.close(); return p }
-    private fun matiasPath(d: RectF): Path { val p=Path(); p.moveTo(d.left+d.width()*.145f,d.top+d.height()*.866f); p.cubicTo(d.left+d.width()*.130f,d.top+d.height()*.842f,d.left+d.width()*.139f,d.top+d.height()*.813f,d.left+d.width()*.168f,d.top+d.height()*.773f); p.cubicTo(d.left+d.width()*.205f,d.top+d.height()*.732f,d.left+d.width()*.252f,d.top+d.height()*.684f,d.left+d.width()*.295f,d.top+d.height()*.630f); p.cubicTo(d.left+d.width()*.326f,d.top+d.height()*.565f,d.left+d.width()*.365f,d.top+d.height()*.521f,d.left+d.width()*.424f,d.top+d.height()*.483f); p.cubicTo(d.left+d.width()*.474f,d.top+d.height()*.448f,d.left+d.width()*.518f,d.top+d.height()*.438f,d.left+d.width()*.574f,d.top+d.height()*.466f); p.cubicTo(d.left+d.width()*.619f,d.top+d.height()*.521f,d.left+d.width()*.660f,d.top+d.height()*.579f,d.left+d.width()*.660f,d.top+d.height()*.611f); p.cubicTo(d.left+d.width()*.650f,d.top+d.height()*.650f,d.left+d.width()*.617f,d.top+d.height()*.680f,d.left+d.width()*.588f,d.top+d.height()*.733f); p.cubicTo(d.left+d.width()*.559f,d.top+d.height()*.792f,d.left+d.width()*.528f,d.top+d.height()*.861f,d.left+d.width()*.488f,d.top+d.height()*1.0f); p.lineTo(d.left+d.width()*.229f,d.top+d.height()*1.0f); p.cubicTo(d.left+d.width()*.205f,d.top+d.height()*.950f,d.left+d.width()*.170f,d.top+d.height()*.911f,d.left+d.width()*.145f,d.top+d.height()*.866f); p.close(); return p }
+    private fun astilleroPath(d: RectF): Path {
+        val p=Path()
+        val X={u:Float->d.left+d.width()*u}; val Y={u:Float->d.top+d.height()*u}
+        p.moveTo(X(0f),Y(.456f)); p.lineTo(X(0f),Y(.352f)); p.cubicTo(X(.02f),Y(.350f),X(.03f),Y(.350f),X(.035f),Y(.336f))
+        p.cubicTo(X(.045f),Y(.315f),X(.052f),Y(.298f),X(.059f),Y(.297f))
+        p.cubicTo(X(.075f),Y(.255f),X(.095f),Y(.252f),X(.100f),Y(.315f))
+        p.cubicTo(X(.112f),Y(.323f),X(.120f),Y(.302f),X(.127f),Y(.277f))
+        p.cubicTo(X(.140f),Y(.265f),X(.149f),Y(.282f),X(.150f),Y(.306f))
+        p.cubicTo(X(.168f),Y(.310f),X(.173f),Y(.326f),X(.172f),Y(.339f))
+        p.cubicTo(X(.198f),Y(.340f),X(.207f),Y(.354f),X(.234f),Y(.358f))
+        p.cubicTo(X(.268f),Y(.365f),X(.289f),Y(.398f),X(.289f),Y(.441f))
+        p.cubicTo(X(.282f),Y(.451f),X(.275f),Y(.455f),X(.270f),Y(.456f)); p.close(); return p
+    }
+
+    private fun pizzeriaPath(d: RectF): Path {
+        val p=Path(); val X={u:Float->d.left+d.width()*u}; val Y={u:Float->d.top+d.height()*u}
+        p.moveTo(X(0f),Y(.651f)); p.lineTo(X(0f),Y(.482f))
+        p.cubicTo(X(.06f),Y(.478f),X(.14f),Y(.473f),X(.217f),Y(.473f))
+        p.cubicTo(X(.235f),Y(.479f),X(.254f),Y(.487f),X(.262f),Y(.510f))
+        p.cubicTo(X(.284f),Y(.516f),X(.294f),Y(.548f),X(.293f),Y(.617f))
+        p.cubicTo(X(.287f),Y(.635f),X(.279f),Y(.647f),X(.271f),Y(.651f)); p.close(); return p
+    }
+
+    private fun clinicPath(d: RectF): Path {
+        val p=Path(); val X={u:Float->d.left+d.width()*u}; val Y={u:Float->d.top+d.height()*u}
+        p.moveTo(X(.625f),Y(.517f)); p.lineTo(X(.625f),Y(.457f))
+        p.cubicTo(X(.645f),Y(.453f),X(.674f),Y(.451f),X(.697f),Y(.453f))
+        p.cubicTo(X(.718f),Y(.455f),X(.731f),Y(.466f),X(.732f),Y(.497f))
+        p.cubicTo(X(.718f),Y(.503f),X(.697f),Y(.508f),X(.675f),Y(.512f))
+        p.cubicTo(X(.654f),Y(.515f),X(.638f),Y(.517f),X(.625f),Y(.517f)); p.close(); return p
+    }
+
+    private fun schoolPath(d: RectF): Path {
+        val p=Path(); val X={u:Float->d.left+d.width()*u}; val Y={u:Float->d.top+d.height()*u}
+        p.moveTo(X(.758f),Y(.647f)); p.lineTo(X(.758f),Y(.594f))
+        p.cubicTo(X(.752f),Y(.575f),X(.746f),Y(.559f),X(.746f),Y(.547f))
+        p.cubicTo(X(.752f),Y(.528f),X(.760f),Y(.510f),X(.766f),Y(.492f))
+        p.cubicTo(X(.820f),Y(.490f),X(.918f),Y(.490f),X(1f),Y(.492f))
+        p.lineTo(X(1f),Y(.647f)); p.cubicTo(X(.91f),Y(.649f),X(.83f),Y(.649f),X(.758f),Y(.647f)); p.close(); return p
+    }
+
+    private fun matiasPath(d: RectF): Path {
+        val p=Path(); val X={u:Float->d.left+d.width()*u}; val Y={u:Float->d.top+d.height()*u}
+        p.moveTo(X(.145f),Y(.866f))
+        p.cubicTo(X(.132f),Y(.842f),X(.138f),Y(.810f),X(.168f),Y(.773f))
+        p.cubicTo(X(.200f),Y(.735f),X(.250f),Y(.684f),X(.295f),Y(.630f))
+        p.cubicTo(X(.322f),Y(.573f),X(.365f),Y(.520f),X(.424f),Y(.483f))
+        p.cubicTo(X(.472f),Y(.449f),X(.520f),Y(.438f),X(.574f),Y(.466f))
+        p.cubicTo(X(.618f),Y(.516f),X(.655f),Y(.575f),X(.660f),Y(.611f))
+        p.cubicTo(X(.650f),Y(.649f),X(.620f),Y(.682f),X(.588f),Y(.733f))
+        p.cubicTo(X(.558f),Y(.790f),X(.528f),Y(.861f),X(.488f),Y(1f))
+        p.lineTo(X(.229f),Y(1f))
+        p.cubicTo(X(.211f),Y(.963f),X(.179f),Y(.918f),X(.145f),Y(.866f)); p.close(); return p
+    }
     private fun titlePath(d: RectF): Path = polygonPath(d, arrayOf(
         .082f to .027f, .896f to .027f, .930f to .242f,
         .812f to .275f, .184f to .274f, .078f to .230f
