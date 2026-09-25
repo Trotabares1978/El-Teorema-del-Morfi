@@ -7,6 +7,9 @@ import android.graphics.drawable.ColorDrawable
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.Window
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.View
 
 class MainActivity : Activity() {
     private var music: MediaPlayer? = null
@@ -16,6 +19,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.setBackgroundDrawable(ColorDrawable(Color.WHITE))
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
         setContentView(MorfiImageIntroView(this))
 
         music = MediaPlayer.create(this, R.raw.el_teorema_del_morfi)?.apply {
