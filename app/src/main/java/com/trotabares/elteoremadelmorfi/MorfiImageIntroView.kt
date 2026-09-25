@@ -91,12 +91,12 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val bg = backgroundBitmap
 
         // Estados completos y acumulativos. Nada se descubre por barridos.
-        val backgroundAmount = ease((t - 0.00f) / 1.60f)
-        val roadAmount = ease((t - 1.45f) / 0.75f)
-        val placesAmount = ease((t - 2.35f) / 0.85f)
-        val matiasAmount = ease((t - 3.30f) / 0.85f)
-        val titleAmount = ease((t - 4.25f) / 0.75f)
-        val enterAmount = ease((t - 5.15f) / 0.70f)
+        val backgroundAmount = fade((t - 0.02f) / 0.48f)
+        val roadAmount = fade((t - 0.48f) / 0.95f)
+        val placesAmount = fade((t - 1.55f) / 1.15f)
+        val matiasAmount = fade((t - 2.85f) / 1.05f)
+        val titleAmount = fade((t - 3.95f) / 0.95f)
+        val enterAmount = fade((t - 4.95f) / 0.90f)
 
         if (backgroundAmount > 0f) {
             imagePaint.alpha = (255f * backgroundAmount).toInt()
@@ -110,8 +110,13 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
 
-        if (t >= 6.05f) c.drawBitmap(bitmap, null, d, imagePaint)
-        if (t < 6.35f) postInvalidateOnAnimation()
+        val finalAmount = fade((t - 5.75f) / 1.25f)
+        if (finalAmount > 0f) {
+            imagePaint.alpha = (255f * finalAmount).toInt()
+            c.drawBitmap(bitmap, null, d, imagePaint)
+            imagePaint.alpha = 255
+        }
+        if (t < 7.10f) postInvalidateOnAnimation()
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
@@ -122,9 +127,11 @@ class MorfiImageIntroView(context: Context) : View(context) {
         maskPaint.reset()
         maskPaint.isAntiAlias = true
         maskPaint.alpha = (255f * amount.coerceIn(0f, 1f)).toInt()
+        maskPaint.maskFilter = BlurMaskFilter(1.35f, BlurMaskFilter.Blur.NORMAL)
         maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         c.drawBitmap(mask, null, d, maskPaint)
         maskPaint.xfermode = null
+        maskPaint.maskFilter = null
         c.restoreToCount(save)
         maskPaint.alpha = 255
     }
@@ -601,6 +608,12 @@ class MorfiImageIntroView(context: Context) : View(context) {
     private fun ease(x: Float): Float {
         val v = x.coerceIn(0f, 1f)
         return v * v * (3f - 2f * v)
+    }
+
+    private fun fade(x: Float): Float {
+        val v = x.coerceIn(0f, 1f)
+        val s = v * v * (3f - 2f * v)
+        return s * s * (3f - 2f * s)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
