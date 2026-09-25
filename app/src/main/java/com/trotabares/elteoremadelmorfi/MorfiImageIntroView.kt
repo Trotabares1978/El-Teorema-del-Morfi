@@ -170,7 +170,6 @@ class MorfiImageIntroView(context: Context) : View(context) {
         c.drawPath(sun, p)
     }
 
-    /** Adds the broad background strokes to the cumulative mask.
     /**
      * BACKGROUND LAYER — one complete, continuous layer.
      * It is deliberately independent from every foreground object.
