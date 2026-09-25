@@ -6,332 +6,423 @@ import android.view.MotionEvent
 import android.view.View
 import kotlin.math.min
 
+/**
+ * Intro built from the real illustration.
+ *
+ * The important difference from the first prototypes is that the scene is NOT
+ * revealed with arbitrary rectangles/blobs. Each important element has its own
+ * traced mask, and a soft moving brush reveals that mask. The background is
+ * drawn first, then the road, buildings one by one, Matias, title and button.
+ */
 class MorfiImageIntroView(context: Context) : View(context) {
-    private val bitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.morfi_intro)
-        ?: error("No se pudo cargar la ilustración real")
 
-    // Start only when the first frame is actually drawn. This prevents MediaPlayer
-    // preparation from consuming the whole intro before the user sees it.
+    private val bitmap: Bitmap =
+        BitmapFactory.decodeResource(resources, R.drawable.morfi_intro)
+            ?: error("No se pudo cargar la ilustracion real")
+
     private var startedAt = 0L
     private var entered = false
     private var enteredAt = 0L
 
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
     private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val clearPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    private var maskBitmap: Bitmap? = null
+    private var maskCanvas: Canvas? = null
+    private var brushBitmap: Bitmap? = null
+    private var brushCanvas: Canvas? = null
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
+        clearPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        maskBitmap?.recycle()
+        brushBitmap?.recycle()
+        maskBitmap = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        brushBitmap = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        maskCanvas = Canvas(maskBitmap!!)
+        brushCanvas = Canvas(brushBitmap!!)
     }
 
     override fun onDraw(c: Canvas) {
         val now = System.currentTimeMillis()
         if (startedAt == 0L) startedAt = now
-
         c.drawColor(Color.WHITE)
 
         if (!entered) {
             val t = (now - startedAt) / 1000f
             drawIntro(c, t)
-            if (t < 10.8f) postInvalidateOnAnimation()
+            if (t < 13.0f) postInvalidateOnAnimation()
         } else {
-            drawMainMenu(c, (now - enteredAt) / 900f)
+            drawMainMenu(c, ease(((now - enteredAt) / 900f).coerceIn(0f, 1f)))
         }
     }
 
     private fun drawIntro(c: Canvas, t: Float) {
         val d = fitRect(width.toFloat(), height.toFloat())
 
-        // The reveal is cumulative: once an element appears it stays visible.
-        // Nothing draws the complete illustration until the sequence is finished.
+        // 0.0-4.1: the landscape is "drawn" in broad, irregular brush strokes.
+        revealBackground(c, d, ease((t - 0.00f) / 4.10f))
 
-        val maskLayer = c.saveLayer(d, null)
-        c.drawColor(Color.WHITE)
+        // 1.9-3.7: sun.
+        revealObject(c, d, ease((t - 1.90f) / 1.80f), ::sunPath, .30f)
 
-        // 0.0–1.25 — sky, with an irregular hand-drawn horizon.
-        revealBand(c, d, 0.00f, 0.00f, 1.00f, 0.35f,
-            ease((t - 0.05f) / 1.20f), 0.010f)
+        // 3.1-5.1: the road grows from the horizon towards the viewer.
+        revealObject(c, d, ease((t - 3.10f) / 2.00f), ::roadPath, .55f)
 
-        // 0.75–1.9 — sun.
-        revealBlob(c, d, 0.61f, 0.36f, 0.12f, 0.075f,
-            ease((t - 0.75f) / 1.15f), 6f)
+        // Individual places, one at a time.
+        revealObject(c, d, ease((t - 5.00f) / 1.15f), ::astilleroPath, .38f)
+        revealObject(c, d, ease((t - 6.00f) / 1.15f), ::pizzeriaPath, .70f)
+        revealObject(c, d, ease((t - 7.00f) / 1.05f), ::clinicPath, .35f)
+        revealObject(c, d, ease((t - 7.85f) / 1.15f), ::schoolPath, .78f)
 
-        // 1.35–2.65 — river.
-        revealBand(c, d, 0.00f, 0.335f, 1.00f, 0.49f,
-            ease((t - 1.35f) / 1.30f), 0.012f)
+        // Matias is deliberately last among the scene elements.
+        revealObject(c, d, ease((t - 8.85f) / 1.90f), ::matiasPath, .46f)
 
-        // 2.05–3.65 — road grows from the horizon toward Matías.
-        revealRoad(c, d, ease((t - 2.05f) / 1.60f))
+        // Only after the scene exists do the title and the wooden sign appear.
+        revealObject(c, d, ease((t - 10.35f) / 1.25f), ::titlePath, .18f)
+        revealObject(c, d, ease((t - 11.25f) / 1.15f), ::enterPath, .55f)
 
-        // 3.0–4.0 — Astillero + ship, following the actual left-side silhouette.
-        revealAstillero(c, d, ease((t - 3.00f) / 1.00f))
-
-        // 3.75–4.75 — pizzeria.
-        revealPizzeria(c, d, ease((t - 3.75f) / 1.00f))
-
-        // 4.50–5.50 — clinic.
-        revealClinic(c, d, ease((t - 4.50f) / 1.00f))
-
-        // 5.25–6.25 — school.
-        revealSchool(c, d, ease((t - 5.25f) / 1.00f))
-
-        // 5.85–7.75 — Matías, with a tighter character-shaped silhouette.
-        revealMatias(c, d, ease((t - 5.85f) / 1.90f))
-
-        // 7.20–8.55 — title area.
-        revealTitle(c, d, ease((t - 7.20f) / 1.35f))
-
-        // 8.25–9.55 — wooden ENTRAR sign.
-        revealEnter(c, d, ease((t - 8.25f) / 1.30f))
-
-        // Apply cumulative reveal mask to the original illustration.
-        maskPaint.reset()
-        maskPaint.isAntiAlias = true
-        maskPaint.color = Color.WHITE
-        maskPaint.style = Paint.Style.FILL
-        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-
-        // The shapes above were drawn on the same layer; use the image itself as
-        // the destination in a second isolated layer so previous reveals remain.
-        c.restoreToCount(maskLayer)
-
-        // Re-render cleanly using the same sequence as an alpha mask.
-        val reveal = c.saveLayer(d, null)
-        c.drawBitmap(bitmap, null, d, imagePaint)
-
-        val mask = Path()
-        val mc = Canvas()
-        val mb = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
-        mc.setBitmap(mb)
-        mc.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-
-        buildMask(mc, d, t)
-
-        maskPaint.reset()
-        maskPaint.isAntiAlias = true
-        maskPaint.color = Color.WHITE
-        maskPaint.style = Paint.Style.FILL
-        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-        c.drawBitmap(mb, 0f, 0f, maskPaint)
-        maskPaint.xfermode = null
-        c.restoreToCount(reveal)
-        mb.recycle()
-
-        if (t >= 9.70f) {
-            c.drawBitmap(bitmap, null, d, imagePaint)
-        }
+        // Once complete, restore the exact original pixels. No mask remains.
+        if (t >= 12.55f) c.drawBitmap(bitmap, null, d, imagePaint)
     }
 
-    private fun buildMask(c: Canvas, d: RectF, t: Float) {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.FILL }
-
-        revealBand(c, d, 0f, 0f, 1f, .35f, ease((t-.05f)/1.20f), .010f, p)
-        revealBlob(c, d, .61f, .36f, .12f, .075f, ease((t-.75f)/1.15f), 6f, p)
-        revealBand(c, d, 0f, .335f, 1f, .49f, ease((t-1.35f)/1.30f), .012f, p)
-        revealRoad(c, d, ease((t-2.05f)/1.60f), p)
-        revealAstillero(c, d, ease((t-3.00f)/1.00f), p)
-        revealPizzeria(c, d, ease((t-3.75f)/1.00f), p)
-        revealClinic(c, d, ease((t-4.50f)/1.00f), p)
-        revealSchool(c, d, ease((t-5.25f)/1.00f), p)
-        revealMatias(c, d, ease((t-5.85f)/1.90f), p)
-        revealTitle(c, d, ease((t-7.20f)/1.35f), p)
-        revealEnter(c, d, ease((t-8.25f)/1.30f), p)
-    }
-
-    private fun revealBand(c: Canvas, d: RectF, l: Float, top: Float, r: Float, bottom: Float, amount: Float, wobble: Float, paint: Paint = maskPaint) {
+    private fun revealBackground(c: Canvas, d: RectF, amount: Float) {
         if (amount <= 0f) return
-        val a = amount.coerceIn(0f,1f)
-        val y0 = d.top + d.height()*top
-        val y1 = y0 + d.height()*(bottom-top)*a
-        val x0 = d.left + d.width()*l
-        val x1 = d.left + d.width()*r
-        val w = d.width()
+        val base = maskCanvas ?: return
+        val brush = brushCanvas ?: return
+        clearMask(base)
+        clearMask(brush)
+
+        // Full background, then cut out every element that must appear later.
+        maskPaint.color = Color.WHITE
+        maskPaint.alpha = 255
+        base.drawRect(d, maskPaint)
+        clearPath(base, titlePath(d))
+        clearPath(base, sunPath(d))
+        clearPath(base, roadPath(d))
+        clearPath(base, astilleroPath(d))
+        clearPath(base, pizzeriaPath(d))
+        clearPath(base, clinicPath(d))
+        clearPath(base, schoolPath(d))
+        clearPath(base, matiasPath(d))
+        clearPath(base, enterPath(d))
+
+        // A set of irregular, overlapping "brush strokes" makes the landscape
+        // look drawn rather than uncovered by rectangular geometry.
+        val ys = floatArrayOf(.025f, .105f, .19f, .285f, .385f, .49f, .60f, .72f, .84f, .95f)
+        val starts = floatArrayOf(-.10f, -.04f, -.12f, -.02f, -.09f, -.03f, -.11f, -.05f, -.10f, -.02f)
+        val ends = floatArrayOf(1.06f, 1.12f, 1.04f, 1.10f, 1.08f, 1.13f, 1.05f, 1.12f, 1.07f, 1.14f)
+        val n = ys.size
+        val scaled = amount.coerceIn(0f, 1f) * n
+        for (i in 0 until n) {
+            val local = (scaled - i).coerceIn(0f, 1f)
+            if (local <= 0f) continue
+            drawBrushStroke(
+                brush,
+                d,
+                starts[i],
+                ys[i],
+                ends[i],
+                local,
+                widthFactor = .085f + (i % 3) * .012f,
+                tilt = if (i % 2 == 0) -.012f else .010f
+            )
+        }
+
+        intersectMask(base, brush)
+        drawMasked(c, d, maskBitmap!!)
+    }
+
+    private fun revealObject(
+        c: Canvas,
+        d: RectF,
+        amount: Float,
+        pathFactory: (RectF) -> Path,
+        direction: Float
+    ) {
+        if (amount <= 0f) return
+        val base = maskCanvas ?: return
+        val brush = brushCanvas ?: return
+        clearMask(base)
+        clearMask(brush)
+
+        maskPaint.color = Color.WHITE
+        maskPaint.alpha = 255
+        base.drawPath(pathFactory(d), maskPaint)
+
+        // Soft directional "paint" passing over the object's own silhouette.
+        val box = pathFactory(d).computeBounds(RectF(), true).let { b ->
+            RectF(b.left - d.width()*.02f, b.top - d.height()*.02f,
+                b.right + d.width()*.02f, b.bottom + d.height()*.02f)
+        }
+        val sweep = when {
+            direction < .45f -> directionSweep(brush, box, amount, true)
+            direction < .60f -> directionSweep(brush, box, amount, false)
+            else -> directionSweep(brush, box, amount, true)
+        }
+        if (!sweep) return
+
+        intersectMask(base, brush)
+        drawMasked(c, d, maskBitmap!!)
+    }
+
+    private fun directionSweep(brush: Canvas, box: RectF, amount: Float, leftToRight: Boolean): Boolean {
         val p = Path()
-        p.moveTo(x0,y0)
-        p.cubicTo(x0+w*.22f,y0-w*wobble,x0+w*.40f,y0+w*wobble,x0+w*.58f,y0)
-        p.cubicTo(x0+w*.76f,y0-w*wobble,x0+w*.90f,y0+w*wobble,x1,y0)
-        p.lineTo(x1,y1)
-        p.cubicTo(x0+w*.88f,y1+w*wobble,x0+w*.68f,y1-w*wobble,x0+w*.50f,y1)
-        p.cubicTo(x0+w*.32f,y1+w*wobble,x0+w*.12f,y1-w*wobble,x0,y1)
-        p.close()
-        paint.maskFilter = if (amount < .98f) BlurMaskFilter(5f, BlurMaskFilter.Blur.NORMAL) else null
-        c.drawPath(p, paint)
-        paint.maskFilter = null
-    }
+        val a = amount.coerceIn(0f, 1f)
+        val w = box.width()
+        val h = box.height()
+        val edge = if (leftToRight) box.left + w * a else box.right - w * a
 
-    private fun revealBlob(c: Canvas, d: RectF, cx: Float, cy: Float, rw: Float, rh: Float, amount: Float, blur: Float, paint: Paint = maskPaint) {
-        if (amount <= 0f) return
-        val a=amount.coerceIn(0f,1f)
-        val x=d.left+d.width()*cx
-        val y=d.top+d.height()*cy
-        val w=d.width()*rw*(.18f+.82f*a)
-        val h=d.height()*rh*(.18f+.82f*a)
-        val p=Path()
-        organicEllipsePath(p,x,y,w,h)
-        paint.maskFilter=BlurMaskFilter(blur,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun revealRoad(c: Canvas,d: RectF,amount:Float,paint:Paint=maskPaint){
-        if(amount<=0f)return
-        val a=amount.coerceIn(0f,1f)
-        val horizon=d.top+d.height()*.445f
-        val bottom=d.top+d.height()*(.50f+.52f*a)
-        val cx=d.left+d.width()*.515f
-        val p=Path()
-        p.moveTo(cx-d.width()*.012f,horizon)
-        p.cubicTo(cx-d.width()*.03f,horizon+d.height()*.08f,cx-d.width()*(.07f+.10f*a),bottom-d.height()*.08f,cx-d.width()*(.055f+.25f*a),bottom)
-        p.lineTo(cx+d.width()*(.055f+.25f*a),bottom)
-        p.cubicTo(cx+d.width()*(.07f+.10f*a),bottom-d.height()*.08f,cx+d.width()*.03f,horizon+d.height()*.08f,cx+d.width()*.012f,horizon)
-        p.close()
-        paint.maskFilter=BlurMaskFilter(7f,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun revealAstillero(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        revealRegion(c,d,amount, arrayOf(
-            .00f to .39f,.37f to .39f,.40f to .48f,.39f to .55f,.34f to .63f,.02f to .70f,.00f to .70f
-        ),paint)
-    }
-    private fun revealPizzeria(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        revealRegion(c,d,amount,arrayOf(
-            .00f to .69f,.27f to .69f,.31f to .77f,.29f to .88f,.12f to .93f,.00f to .91f
-        ),paint)
-    }
-    private fun revealClinic(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        revealRegion(c,d,amount,arrayOf(
-            .68f to .68f,.91f to .68f,1f to .72f,1f to .84f,.84f to .84f,.66f to .82f
-        ),paint)
-    }
-    private fun revealSchool(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        revealRegion(c,d,amount,arrayOf(
-            .77f to .70f,1f to .70f,1f to .88f,.75f to .88f,.70f to .80f
-        ),paint)
-    }
-
-    private fun revealMatias(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        if(amount<=0f)return
-        val a=amount.coerceIn(0f,1f)
-        val p=Path()
-        val left=d.left+d.width()*.13f
-        val right=d.left+d.width()*.68f
-        val top=d.top+d.height()*(.70f+.03f*(1f-a))
-        val bot=d.top+d.height()*(1f+.04f*(1f-a))
-        p.moveTo(left,bot)
-        p.cubicTo(left-d.width()*.02f,bot-d.height()*.12f,left+d.width()*.04f,top+d.height()*.16f,left+d.width()*.20f,top+d.height()*.06f)
-        p.cubicTo(left+d.width()*.24f,top-d.height()*.03f,left+d.width()*.30f,top-d.height()*.08f,left+d.width()*.39f,top)
-        p.cubicTo(left+d.width()*.47f,top-d.height()*.02f,left+d.width()*.52f,top+d.height()*.01f,right-d.width()*.02f,top+d.height()*.10f)
-        p.cubicTo(right,top+d.height()*.25f,right-d.width()*.06f,bot-d.height()*.08f,right-d.width()*.02f,bot)
-        p.close()
-        paint.maskFilter=BlurMaskFilter(6f,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun revealTitle(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        if(amount<=0f)return
-        val a=amount.coerceIn(0f,1f)
-        val p=Path()
-        val y=d.top+d.height()*.045f
-        val h=d.height()*.27f*a
-        p.moveTo(d.left+d.width()*.07f,y+h*.15f)
-        p.cubicTo(d.left+d.width()*.20f,y-h*.02f,d.left+d.width()*.36f,y+h*.04f,d.left+d.width()*.50f,y)
-        p.cubicTo(d.left+d.width()*.66f,y+h*.05f,d.left+d.width()*.84f,y-h*.01f,d.left+d.width()*.94f,y+h*.13f)
-        p.lineTo(d.left+d.width()*.91f,y+h)
-        p.cubicTo(d.left+d.width()*.70f,y+h*.92f,d.left+d.width()*.48f,y+h*1.02f,d.left+d.width()*.25f,y+h*.94f)
-        p.cubicTo(d.left+d.width()*.14f,y+h*.90f,d.left+d.width()*.08f,y+h*.62f,d.left+d.width()*.07f,y+h*.15f)
-        p.close()
-        paint.maskFilter=BlurMaskFilter(5f,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun revealEnter(c:Canvas,d:RectF,amount:Float,paint:Paint=maskPaint){
-        if(amount<=0f)return
-        val a=amount.coerceIn(0f,1f)
-        val y=d.top+d.height()*.835f
-        val h=d.height()*.145f*a
-        val p=Path()
-        p.moveTo(d.left+d.width()*.19f,y)
-        p.cubicTo(d.left+d.width()*.35f,y-d.height()*.012f,d.left+d.width()*.67f,y+d.height()*.008f,d.left+d.width()*.81f,y+d.height()*.01f)
-        p.lineTo(d.left+d.width()*.79f,y+h)
-        p.cubicTo(d.left+d.width()*.61f,y+h*1.03f,d.left+d.width()*.38f,y+h*.98f,d.left+d.width()*.20f,y+h*.90f)
-        p.close()
-        paint.maskFilter=BlurMaskFilter(6f,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun revealRegion(c:Canvas,d:RectF,amount:Float,points:Array<Pair<Float,Float>>,paint:Paint){
-        if(amount<=0f)return
-        val a=amount.coerceIn(0f,1f)
-        val center=points.map{it.second}.average().toFloat()
-        val p=Path()
-        val n=(points.size*a).toInt().coerceAtLeast(1).coerceAtMost(points.size)
-        for(i in 0 until n){
-            val q=points[i]
-            val x=d.left+d.width()*q.first
-            val y=d.top+d.height()*q.second
-            if(i==0)p.moveTo(x,y) else p.lineTo(x,y)
+        if (leftToRight) {
+            p.moveTo(box.left - w*.15f, box.top - h*.15f)
+            p.lineTo(edge, box.top - h*.15f)
+            p.lineTo(edge + w*.05f, box.bottom + h*.15f)
+            p.lineTo(box.left - w*.15f, box.bottom + h*.15f)
+        } else {
+            p.moveTo(edge, box.top - h*.15f)
+            p.lineTo(box.right + w*.15f, box.top - h*.15f)
+            p.lineTo(box.right + w*.15f, box.bottom + h*.15f)
+            p.lineTo(edge - w*.05f, box.bottom + h*.15f)
         }
-        if(n>=2)p.close()
-        paint.maskFilter=BlurMaskFilter(7f,BlurMaskFilter.Blur.NORMAL)
-        c.drawPath(p,paint)
-        paint.maskFilter=null
-    }
-
-    private fun organicEllipsePath(p:Path,cx:Float,cy:Float,w:Float,h:Float){
-        val rx=w/2f; val ry=h/2f
-        p.moveTo(cx-rx*.88f,cy-ry*.10f)
-        p.cubicTo(cx-rx*.98f,cy-ry*.62f,cx-rx*.48f,cy-ry*1.02f,cx-rx*.04f,cy-ry*.90f)
-        p.cubicTo(cx+rx*.42f,cy-ry*1.02f,cx+rx*.94f,cy-ry*.60f,cx+rx*.82f,cy-ry*.08f)
-        p.cubicTo(cx+rx*1.00f,cy+ry*.36f,cx+rx*.48f,cy+ry*.96f,cx,cy+ry*.82f)
-        p.cubicTo(cx-rx*.44f,cy+ry*1.02f,cx-rx*1.00f,cy+ry*.56f,cx-rx*.88f,cy-ry*.10f)
         p.close()
-    }
 
-    private fun drawMainMenu(c:Canvas,elapsed:Float){
-        val d=fitRect(width.toFloat(),height.toFloat())
-        c.drawBitmap(bitmap,null,d,imagePaint)
-        val a=ease(elapsed.coerceIn(0f,1f))
-        textPaint.color=Color.rgb(55,43,32); textPaint.alpha=(255*a).toInt()
-        textPaint.textAlign=Paint.Align.CENTER; textPaint.typeface=Typeface.DEFAULT_BOLD
-        textPaint.textSize=width*.043f
-        c.drawText("EL MUNDO DE MATÍAS",width/2f,height*.735f,textPaint)
-        textPaint.typeface=Typeface.DEFAULT; textPaint.textSize=width*.027f
-        c.drawText("Elegí por dónde empezar",width/2f,height*.775f,textPaint)
-        val labels=arrayOf("MORFI","¡EUREKA!","DETECTIVES","LABORATORIO")
-        val xs=floatArrayOf(.27f,.27f,.73f,.73f); val ys=floatArrayOf(.81f,.855f,.81f,.855f)
-        for(i in labels.indices){
-            textPaint.color=Color.rgb(82,111,66); textPaint.alpha=(235*a).toInt()
-            c.drawRoundRect(width*(xs[i]-.20f),height*(ys[i]-.025f),width*(xs[i]+.20f),height*(ys[i]+.018f),18f,18f,textPaint)
-            textPaint.color=Color.WHITE; textPaint.textSize=width*.021f; textPaint.typeface=Typeface.DEFAULT_BOLD
-            c.drawText(labels[i],width*xs[i],height*(ys[i]+.002f),textPaint)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+            maskFilter = BlurMaskFilter((w + h) * .008f + 2f, BlurMaskFilter.Blur.NORMAL)
         }
-        textPaint.alpha=255
+        brush.drawPath(p, paint)
+        return true
     }
 
-    private fun fitRect(w:Float,h:Float):RectF{
-        val s=min(w/bitmap.width,h/bitmap.height)
-        val rw=bitmap.width*s; val rh=bitmap.height*s
-        return RectF((w-rw)/2f,(h-rh)/2f,(w+rw)/2f,(h+rh)/2f)
+    private fun drawBrushStroke(
+        canvas: Canvas,
+        d: RectF,
+        startX: Float,
+        y: Float,
+        endX: Float,
+        amount: Float,
+        widthFactor: Float,
+        tilt: Float
+    ) {
+        val p = Path()
+        val yy = d.top + d.height() * y
+        val x0 = d.left + d.width() * startX
+        val full = d.width() * (endX - startX)
+        val x1 = x0 + full * amount
+        val wobble = d.height() * .008f
+        p.moveTo(x0, yy)
+        p.cubicTo(
+            x0 + full*.20f, yy - wobble,
+            x0 + full*.38f, yy + wobble,
+            x0 + full*.58f, yy
+        )
+        p.cubicTo(
+            x0 + full*.75f, yy - wobble*.7f,
+            x0 + full*.90f, yy + wobble*.7f,
+            x1, yy + d.height()*tilt*amount
+        )
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+            strokeWidth = d.height() * widthFactor
+            maskFilter = BlurMaskFilter(d.height()*.008f, BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.drawPath(p, paint)
     }
 
-    private fun ease(x:Float):Float{
-        val v=x.coerceIn(0f,1f); return v*v*(3f-2f*v)
+    private fun drawMasked(c: Canvas, d: RectF, mask: Bitmap) {
+        val save = c.saveLayer(d, null)
+        c.drawBitmap(bitmap, null, d, imagePaint)
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        c.drawBitmap(mask, 0f, 0f, maskPaint)
+        maskPaint.xfermode = null
+        c.restoreToCount(save)
     }
 
-    override fun onTouchEvent(e:MotionEvent):Boolean{
-        if(e.action==MotionEvent.ACTION_UP && !entered){
-            val t=(System.currentTimeMillis()-startedAt)/1000f
-            if(t>=9.2f){
-                entered=true
-                enteredAt=System.currentTimeMillis()
+    private fun intersectMask(base: Canvas, brush: Canvas) {
+        val save = base.save()
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        base.drawBitmap(brushBitmap!!, 0f, 0f, maskPaint)
+        maskPaint.xfermode = null
+        base.restoreToCount(save)
+    }
+
+    private fun clearMask(canvas: Canvas) {
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+    }
+
+    private fun clearPath(canvas: Canvas, path: Path) {
+        canvas.drawPath(path, clearPaint)
+    }
+
+    private fun sunPath(d: RectF): Path = ellipsePath(
+        d.left + d.width()*.610f,
+        d.top + d.height()*.318f,
+        d.width()*.061f,
+        d.height()*.041f
+    )
+
+    private fun roadPath(d: RectF): Path = polygonPath(d, arrayOf(
+        .493f to .402f, .507f to .402f,
+        .535f to .505f, .585f to .640f, .805f to 1.0f,
+        .195f to 1.0f, .415f to .640f, .465f to .505f
+    ))
+
+    private fun astilleroPath(d: RectF): Path = polygonPath(d, arrayOf(
+        0f to .352f, .035f to .352f, .035f to .336f, .059f to .336f,
+        .059f to .297f, .076f to .297f, .076f to .263f, .096f to .263f,
+        .100f to .315f, .121f to .315f, .127f to .277f, .146f to .277f,
+        .150f to .306f, .172f to .306f, .172f to .339f, .195f to .339f,
+        .199f to .358f, .234f to .358f, .234f to .377f, .266f to .377f,
+        .266f to .397f, .289f to .397f, .289f to .441f, .270f to .441f,
+        .270f to .456f, 0f to .456f
+    ))
+
+    private fun pizzeriaPath(d: RectF): Path = polygonPath(d, arrayOf(
+        0f to .482f, .035f to .482f, .035f to .473f, .217f to .473f,
+        .217f to .487f, .262f to .487f, .262f to .510f, .293f to .510f,
+        .293f to .617f, .271f to .617f, .271f to .651f, 0f to .651f
+    ))
+
+    private fun clinicPath(d: RectF): Path = polygonPath(d, arrayOf(
+        .627f to .457f, .646f to .453f, .697f to .453f, .697f to .459f,
+        .732f to .459f, .732f to .497f, .711f to .497f, .711f to .517f,
+        .625f to .517f
+    ))
+
+    private fun schoolPath(d: RectF): Path = polygonPath(d, arrayOf(
+        .766f to .492f, 1f to .492f, 1f to .647f, .758f to .647f,
+        .758f to .594f, .746f to .594f, .746f to .547f, .766f to .547f
+    ))
+
+    private fun matiasPath(d: RectF): Path = polygonPath(d, arrayOf(
+        .145f to .866f, .133f to .846f, .141f to .815f, .152f to .797f,
+        .168f to .773f, .188f to .753f, .205f to .732f, .230f to .710f,
+        .252f to .684f, .277f to .658f, .295f to .630f, .303f to .607f,
+        .313f to .583f, .324f to .559f, .344f to .540f, .365f to .521f,
+        .395f to .502f, .424f to .483f, .455f to .463f, .486f to .448f,
+        .518f to .438f, .549f to .448f, .574f to .466f, .600f to .491f,
+        .619f to .521f, .638f to .549f, .656f to .579f, .660f to .611f,
+        .650f to .635f, .633f to .658f, .617f to .680f, .604f to .704f,
+        .588f to .733f, .573f to .761f, .559f to .792f, .543f to .825f,
+        .528f to .861f, .518f to .892f, .508f to .929f, .488f to 1.0f,
+        .229f to 1.0f, .217f to .974f, .199f to .949f, .187f to .930f,
+        .170f to .911f, .153f to .888f
+    ))
+
+    private fun titlePath(d: RectF): Path = polygonPath(d, arrayOf(
+        .082f to .027f, .896f to .027f, .930f to .242f,
+        .812f to .275f, .184f to .274f, .078f to .230f
+    ))
+
+    private fun enterPath(d: RectF): Path = roundedRectPath(
+        RectF(
+            d.left + d.width()*.201f,
+            d.top + d.height()*.828f,
+            d.left + d.width()*.801f,
+            d.top + d.height()*.971f
+        ),
+        d.width()*.025f
+    )
+
+    private fun polygonPath(d: RectF, points: Array<Pair<Float, Float>>): Path {
+        val p = Path()
+        points.forEachIndexed { i, q ->
+            val x = d.left + d.width()*q.first
+            val y = d.top + d.height()*q.second
+            if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
+        }
+        p.close()
+        return p
+    }
+
+    private fun ellipsePath(cx: Float, cy: Float, rx: Float, ry: Float): Path {
+        val p = Path()
+        p.addOval(RectF(cx-rx, cy-ry, cx+rx, cy+ry), Path.Direction.CW)
+        return p
+    }
+
+    private fun roundedRectPath(r: RectF, radius: Float): Path {
+        val p = Path()
+        p.addRoundRect(r, radius, radius, Path.Direction.CW)
+        return p
+    }
+
+    private fun fitRect(w: Float, h: Float): RectF {
+        val s = min(w/bitmap.width, h/bitmap.height)
+        val rw = bitmap.width*s
+        val rh = bitmap.height*s
+        return RectF((w-rw)/2f, (h-rh)/2f, (w+rw)/2f, (h+rh)/2f)
+    }
+
+    private fun drawMainMenu(c: Canvas, a: Float) {
+        val d = fitRect(width.toFloat(), height.toFloat())
+        c.drawBitmap(bitmap, null, d, imagePaint)
+        textPaint.color = Color.rgb(55,43,32)
+        textPaint.alpha = (255*a).toInt()
+        textPaint.textAlign = Paint.Align.CENTER
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = width*.043f
+        c.drawText("EL MUNDO DE MATÍAS", width/2f, height*.735f, textPaint)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = width*.027f
+        c.drawText("Elegí por dónde empezar", width/2f, height*.775f, textPaint)
+
+        val labels = arrayOf("MORFI","¡EUREKA!","DETECTIVES","LABORATORIO")
+        val xs = floatArrayOf(.27f,.27f,.73f,.73f)
+        val ys = floatArrayOf(.81f,.855f,.81f,.855f)
+        for (i in labels.indices) {
+            textPaint.color = Color.rgb(82,111,66)
+            textPaint.alpha = (235*a).toInt()
+            c.drawRoundRect(
+                width*(xs[i]-.20f), height*(ys[i]-.025f),
+                width*(xs[i]+.20f), height*(ys[i]+.018f),
+                18f,18f,textPaint
+            )
+            textPaint.color = Color.WHITE
+            textPaint.textSize = width*.021f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            c.drawText(labels[i], width*xs[i], height*(ys[i]+.002f), textPaint)
+        }
+        textPaint.alpha = 255
+    }
+
+    private fun ease(x: Float): Float {
+        val v = x.coerceIn(0f, 1f)
+        return v*v*(3f-2f*v)
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (e.action == MotionEvent.ACTION_UP && !entered) {
+            val t = (System.currentTimeMillis() - startedAt) / 1000f
+            if (t >= 11.0f) {
+                entered = true
+                enteredAt = System.currentTimeMillis()
                 postInvalidateOnAnimation()
             }
         }
         return true
+    }
+
+    override fun onDetachedFromWindow() {
+        maskBitmap?.recycle()
+        brushBitmap?.recycle()
+        maskBitmap = null
+        brushBitmap = null
+        maskCanvas = null
+        brushCanvas = null
+        super.onDetachedFromWindow()
     }
 }
