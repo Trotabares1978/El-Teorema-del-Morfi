@@ -69,6 +69,8 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
     private val path = Path()
     private val started = System.currentTimeMillis()
     private var elapsed = 0f
+    private var entered = false
+    private var finalStartedAt = 0L
 
     init {
         setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -79,7 +81,16 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         super.onDraw(c)
         val w = width.toFloat()
         val h = height.toFloat()
-        elapsed = (System.currentTimeMillis() - started) / 1000f
+        val now = System.currentTimeMillis()
+        elapsed = (now - started) / 1000f
+
+        if (entered) {
+            val finalA = ease((now - finalStartedAt) / 1100f).coerceIn(0f, 1f)
+            c.drawColor(Color.rgb(248, 238, 218))
+            drawFinalScene(c, w, h, finalA)
+            if (finalA < 1f) postInvalidateOnAnimation()
+            return
+        }
 
         val world = ease(elapsed / 3.2f).coerceIn(0f, 1f)
         val road = ease((elapsed - 1.35f) / 1.75f).coerceIn(0f, 1f)
@@ -96,6 +107,106 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         drawButton(c, w, h, button)
 
         if (elapsed < 8.5f) postInvalidateOnAnimation()
+    }
+
+    private fun drawFinalScene(c: Canvas, w: Float, h: Float, a: Float) {
+        p.alpha = (255 * a).toInt()
+        p.shader = LinearGradient(0f, 0f, 0f, h * .62f,
+            Color.rgb(246, 205, 157), Color.rgb(226, 132, 93), Shader.TileMode.CLAMP)
+        c.drawRect(0f, 0f, w, h, p)
+        p.shader = null
+
+        p.color = Color.rgb(235, 164, 104)
+        c.drawCircle(w*.76f, h*.25f, min(w,h)*.09f, p)
+
+        p.color = Color.rgb(70,108,118)
+        c.drawRect(0f,h*.49f,w,h,p)
+
+        p.color = Color.rgb(111,82,58)
+        path.reset()
+        path.moveTo(w*.44f,h*.49f); path.lineTo(w*.56f,h*.49f)
+        path.lineTo(w*.70f,h); path.lineTo(w*.27f,h); path.close()
+        c.drawPath(path,p)
+
+        p.color = Color.rgb(157,108,65)
+        for (i in 0..8) {
+            val x=w*(.46f+i*.015f)
+            c.drawRect(x,h*.50f,x+w*.008f,h,p)
+        }
+
+        p.color = Color.rgb(55,63,65)
+        c.drawRect(w*.05f,h*.39f,w*.30f,h*.49f,p)
+        p.style=Paint.Style.STROKE
+        p.strokeWidth=maxOf(2f,w*.006f)
+        c.drawLine(w*.10f,h*.39f,w*.18f,h*.22f,p)
+        c.drawLine(w*.18f,h*.22f,w*.27f,h*.39f,p)
+        p.style=Paint.Style.FILL
+
+        p.color=Color.rgb(218,218,204)
+        path.reset()
+        path.moveTo(w*.30f,h*.45f); path.lineTo(w*.58f,h*.45f)
+        path.lineTo(w*.53f,h*.50f); path.lineTo(w*.35f,h*.50f); path.close()
+        c.drawPath(path,p)
+        p.color=Color.rgb(58,65,67)
+        c.drawRect(w*.37f,h*.40f,w*.47f,h*.45f,p)
+
+        p.color=Color.rgb(161,88,58)
+        c.drawRect(w*.67f,h*.40f,w*.90f,h*.50f,p)
+        p.color=Color.rgb(93,58,43)
+        path.reset()
+        path.moveTo(w*.64f,h*.40f); path.lineTo(w*.785f,h*.31f); path.lineTo(w*.93f,h*.40f); path.close()
+        c.drawPath(path,p)
+        p.color=Color.rgb(244,201,92)
+        p.textAlign=Paint.Align.CENTER
+        p.typeface=Typeface.DEFAULT_BOLD
+        p.textSize=w*.032f
+        c.drawText("PIZZA",w*.785f,h*.445f,p)
+
+        val baseY=h*.91f
+        p.color=Color.rgb(39,55,70)
+        c.drawRect(w*.455f,baseY-h*.18f,w*.545f,baseY,p)
+        p.color=Color.rgb(196,69,47)
+        c.drawRoundRect(w*.40f,baseY-h*.32f,w*.60f,baseY-h*.10f,28f,28f,p)
+        p.color=Color.rgb(224,164,116)
+        c.drawCircle(w*.50f,baseY-h*.39f,w*.075f,p)
+        p.color=Color.rgb(43,34,30)
+        path.reset()
+        path.moveTo(w*.425f,baseY-h*.39f)
+        path.cubicTo(w*.43f,baseY-h*.48f,w*.55f,baseY-h*.49f,w*.58f,baseY-h*.40f)
+        path.lineTo(w*.54f,baseY-h*.37f); path.lineTo(w*.50f,baseY-h*.42f)
+        path.lineTo(w*.46f,baseY-h*.37f); path.close()
+        c.drawPath(path,p)
+
+        p.color=Color.rgb(128,91,61)
+        c.drawOval(w*.60f,baseY-h*.16f,w*.76f,baseY-h*.03f,p)
+        c.drawCircle(w*.73f,baseY-h*.13f,w*.055f,p)
+
+        drawSign(c,w*.08f,h*.69f,"MORFI",a)
+        drawSign(c,w*.08f,h*.77f,"EUREKA",a)
+        drawSign(c,w*.82f,h*.68f,"DETECTIVES",a)
+        drawSign(c,w*.82f,h*.76f,"LABORATORIO",a)
+
+        p.color=Color.rgb(60,45,35)
+        p.textAlign=Paint.Align.CENTER
+        p.typeface=Typeface.create("sans-serif-condensed",Typeface.BOLD)
+        p.textSize=w*.068f
+        c.drawText("EL TEOREMA DEL MORFI",w*.50f,h*.085f,p)
+        p.typeface=Typeface.DEFAULT
+        p.textSize=w*.036f
+        c.drawText("Más que un libro",w*.50f,h*.125f,p)
+        p.alpha=255
+    }
+
+    private fun drawSign(c: Canvas,x: Float,y: Float,label: String,a: Float) {
+        p.alpha=(255*a).toInt()
+        p.color=Color.rgb(103,70,45)
+        c.drawRect(x,y,x+width*.12f,y+height*.055f,p)
+        p.color=Color.WHITE
+        p.textAlign=Paint.Align.CENTER
+        p.typeface=Typeface.DEFAULT_BOLD
+        p.textSize=width*.021f
+        c.drawText(label,x+width*.06f,y+height*.036f,p)
+        p.alpha=255
     }
 
     private fun drawWorld(c: Canvas, w: Float, h: Float, a: Float, road: Float) {
@@ -342,5 +453,14 @@ private class MorfiIntroView(context: android.content.Context) : View(context) {
         return v*v*(3f-2f*v)
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean = true
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_UP && !entered && elapsed >= 6.2f) {
+            if (event.x in width*.31f..width*.69f && event.y in height*.89f..height*.98f) {
+                entered=true
+                finalStartedAt=System.currentTimeMillis()
+                postInvalidateOnAnimation()
+            }
+        }
+        return true
+    }
 }
