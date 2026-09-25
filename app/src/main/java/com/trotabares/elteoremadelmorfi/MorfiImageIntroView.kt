@@ -21,14 +21,6 @@ class MorfiImageIntroView(context: Context) : View(context) {
         BitmapFactory.decodeResource(resources, R.drawable.morfi_intro)
             ?: error("No se pudo cargar la ilustración del Morfi")
 
-    // Fondo derivado directamente de la ilustración original, con los
-    // elementos de primer plano retirados mediante inpainting. No se inventan
-    // colores ni formas nuevas: el fondo conserva cielo, río, horizonte y
-    // paisaje de la imagen real.
-    private val backgroundBitmap: Bitmap =
-        BitmapFactory.decodeResource(resources, R.drawable.morfi_background)
-            ?: error("No se pudo cargar el fondo del Morfi")
-
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
     private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -123,12 +115,59 @@ class MorfiImageIntroView(context: Context) : View(context) {
      * parte de ella. Los objetos se superponen después mediante sus máscaras.
      */
     private fun drawPastelBackground(c: Canvas, d: RectF, amount: Float) {
-        val a = ease(amount.coerceIn(0f, 1f))
+        val a = amount.coerceIn(0f, 1f)
         if (a <= 0f) return
-        val p = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
-        p.alpha = (255f * a).toInt().coerceIn(0, 255)
-        c.drawBitmap(backgroundBitmap, null, d, p)
-        p.alpha = 255
+
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val h = d.height()
+
+        // Cielo pastel completo.
+        p.color = Color.rgb(247, 235, 205)
+        p.alpha = (255 * a).toInt()
+        c.drawRect(d.left, d.top, d.right, d.top + h * .405f, p)
+
+        // Río al fondo.
+        p.color = Color.rgb(183, 211, 205)
+        c.drawRect(d.left, d.top + h * .405f, d.right, d.top + h * .505f, p)
+
+        // Campo continuo.
+        p.color = Color.rgb(190, 207, 157)
+        c.drawRect(d.left, d.top + h * .505f, d.right, d.bottom, p)
+
+        // Segunda masa de campo para conservar la sensación orgánica de la
+        // ilustración sin introducir recortes ni huecos.
+        val field = Path()
+        field.moveTo(d.left, d.top + h * .555f)
+        field.cubicTo(
+            d.left + d.width() * .22f, d.top + h * .515f,
+            d.left + d.width() * .44f, d.top + h * .575f,
+            d.left + d.width() * .64f, d.top + h * .535f
+        )
+        field.cubicTo(
+            d.left + d.width() * .80f, d.top + h * .505f,
+            d.left + d.width() * .94f, d.top + h * .555f,
+            d.right, d.top + h * .525f
+        )
+        field.lineTo(d.right, d.bottom)
+        field.lineTo(d.left, d.bottom)
+        field.close()
+        p.color = Color.rgb(205, 215, 164)
+        c.drawPath(field, p)
+
+        // Sol suave, también perteneciente al fondo.
+        val sun = Path()
+        sun.addOval(
+            RectF(
+                d.left + d.width() * .549f,
+                d.top + h * .270f,
+                d.left + d.width() * .671f,
+                d.top + h * .352f
+            ),
+            Path.Direction.CW
+        )
+        p.color = Color.rgb(239, 198, 126)
+        p.alpha = (235 * a).toInt()
+        c.drawPath(sun, p)
     }
 
     /**
