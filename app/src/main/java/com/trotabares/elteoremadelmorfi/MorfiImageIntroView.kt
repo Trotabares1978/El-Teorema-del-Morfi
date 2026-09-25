@@ -91,7 +91,7 @@ class MorfiImageIntroView(context: Context) : View(context) {
         val bg = backgroundBitmap
 
         // Estados completos y acumulativos. Nada se descubre por barridos.
-        val backgroundAmount = fade((t - 0.01f) / 0.32f)
+        val backgroundAmount = fade(t / 0.35f)
         val roadAmount = fade((t - 0.70f) / 1.20f)
         val placesAmount = fade((t - 1.85f) / 1.45f)
         val matiasAmount = fade((t - 3.25f) / 1.30f)
@@ -107,16 +107,42 @@ class MorfiImageIntroView(context: Context) : View(context) {
         drawStage(c, d, stageMasks[0], roadAmount)
         drawStage(c, d, stageMasks[1], placesAmount)
         drawStage(c, d, stageMasks[2], matiasAmount)
-        drawStage(c, d, stageMasks[3], titleAmount)
+        drawTitleStage(c, d, stageMasks[3], titleAmount)
         drawStage(c, d, stageMasks[4], enterAmount)
+        if (t < 8.20f) postInvalidateOnAnimation()
+    }
 
-        val finalAmount = fade((t - 7.05f) / 1.45f)
-        if (finalAmount > 0f) {
-            imagePaint.alpha = (255f * finalAmount).toInt()
-            c.drawBitmap(bitmap, null, d, imagePaint)
-            imagePaint.alpha = 255
-        }
-        if (t < 8.70f) postInvalidateOnAnimation()
+    private fun drawTitleStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
+        if (mask == null || amount <= 0f) return
+        val save = c.saveLayer(d, null)
+        imagePaint.alpha = 255
+        c.drawBitmap(bitmap, null, d, imagePaint)
+
+        // El título se revela de manera continua desde arriba hacia abajo,
+        // usando la máscara real del título. No se dibuja el rectángulo de
+        // fondo ni se hace un salto desde un fragmento al título completo.
+        val reveal = amount.coerceIn(0f, 1f)
+        val titleTop = d.top + d.height() * .025f
+        val titleBottom = d.top + d.height() * .30f
+        val revealY = titleTop + (titleBottom - titleTop) * reveal
+
+        maskPaint.reset()
+        maskPaint.isAntiAlias = true
+        maskPaint.shader = LinearGradient(
+            0f, titleTop, 0f, titleBottom,
+            intArrayOf(Color.TRANSPARENT, Color.WHITE, Color.WHITE),
+            floatArrayOf(
+                (reveal - .16f).coerceIn(0f, 1f),
+                (reveal - .03f).coerceIn(0f, 1f),
+                reveal.coerceIn(0f, 1f)
+            ),
+            Shader.TileMode.CLAMP
+        )
+        maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        c.drawBitmap(mask, null, d, maskPaint)
+        maskPaint.shader = null
+        maskPaint.xfermode = null
+        c.restoreToCount(save)
     }
 
     private fun drawStage(c: Canvas, d: RectF, mask: Bitmap?, amount: Float) {
