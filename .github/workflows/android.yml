@@ -82,3 +82,5 @@ jobs:
         with:
           name: El-Teorema-del-Morfi-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # Serrucho: commit disparador para validar la corrección de la Build 125.
