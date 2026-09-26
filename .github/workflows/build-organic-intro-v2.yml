@@ -1,15 +1,14 @@
 name: Build organic intro v2
 on:
   push:
-    paths:
-      - 'index.html'
-      - 'tools/build_organic_intro.py'
-      - '.github/workflows/build-organic-intro-v2.yml'
+    branches:
+      - main
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   build:
-    if: ${{ !contains(github.event.head_commit.message, '[organic-intro]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[organic-intro]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
