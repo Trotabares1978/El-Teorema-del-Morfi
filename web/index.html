@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>El Teorema del Morfi</title>
+<style>
+:root{--ink:#3d2d22}
+*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f7f1e5}
+body{font-family:Georgia,'Times New Roman',serif;color:var(--ink)}
+#intro{position:relative;width:100%;height:100%;min-height:100svh;overflow:hidden;background:#f7f1e5}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.art{position:relative;width:min(100vw,66.6667vh);height:min(150vh,100vh);max-width:100vw;max-height:100vh;overflow:hidden}
+.layer{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.bg{opacity:1}
+.fore{opacity:0;clip-path:inset(100% 0 0 0)}
+.path{clip-path:polygon(45% 45%,55% 45%,72% 100%,20% 100%);filter:saturate(.96)}
+.places{clip-path:polygon(0 26%,100% 24%,100% 67%,0 67%)}
+.matias{clip-path:polygon(49% 48%,64% 46%,69% 82%,44% 84%)}
+.titleLayer{opacity:0;position:absolute;left:6%;right:6%;top:7%;text-align:center;transform:translateY(-10px) scale(.98);font-weight:900;letter-spacing:.055em;text-transform:uppercase;color:#513321;text-shadow:0 1px 0 rgba(255,255,255,.55);font-size:clamp(22px,5.2vw,52px);line-height:.92}
+.subtitle{font-size:.28em;letter-spacing:.18em;margin-top:.35em;font-weight:700}
+.enter{position:absolute;left:50%;bottom:8%;transform:translate(-50%,20px) scale(.92);opacity:0;border:0;background:transparent;padding:0;cursor:pointer}
+.enter .sign{display:block;padding:.48em 1.2em .55em;border-radius:8px;background:linear-gradient(#c99658,#9a6334);border:3px solid #6b4225;box-shadow:0 5px 0 #54351f,0 9px 18px #0003;color:#fff7e8;font:900 clamp(20px,5vw,44px)/1 Georgia,serif;letter-spacing:.08em;text-shadow:0 2px 1px #57351f}
+.enter:active .sign{transform:translateY(4px);box-shadow:0 1px 0 #54351f,0 4px 10px #0003}
+.ready #path{animation:revealPath 1.15s cubic-bezier(.2,.75,.25,1) .65s forwards}
+.ready #places{animation:revealPlaces 1.15s cubic-bezier(.2,.75,.25,1) 1.85s forwards}
+.ready #matias{animation:revealMatias 1.15s cubic-bezier(.2,.75,.25,1) 3.15s forwards}
+.ready .titleLayer{animation:titleIn .9s cubic-bezier(.2,.8,.2,1) 4.45s forwards}
+.ready .enter{animation:enterIn .75s cubic-bezier(.2,.85,.25,1) 5.45s forwards}
+@keyframes revealPath{from{opacity:0;clip-path:polygon(49% 43%,51% 43%,51% 43%,49% 43%)}to{opacity:1;clip-path:polygon(45% 45%,55% 45%,72% 100%,20% 100%)}}
+@keyframes revealPlaces{from{opacity:0;clip-path:inset(100% 0 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@keyframes revealMatias{from{opacity:0;clip-path:circle(0 at 57% 63%)}to{opacity:1;clip-path:polygon(49% 48%,64% 46%,69% 82%,44% 84%)}}
+@keyframes titleIn{from{opacity:0;transform:translateY(-12px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes enterIn{from{opacity:0;transform:translate(-50%,25px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+#soundHint{position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;border-radius:14px;background:#fff9;color:#3d2d22;backdrop-filter:blur(4px);font-weight:700;text-align:center;transition:opacity .4s}
+#soundHint.hidden{opacity:0;pointer-events:none}
+@media (max-aspect-ratio:2/3){.art{width:100vw;height:150vw}}
+</style>
+</head>
+<body>
+<main id="intro">
+  <div class="scene"><div class="art" id="art">
+    <img id="bg" class="layer bg" alt="">
+    <img id="path" class="layer fore path" alt="">
+    <img id="places" class="layer fore places" alt="">
+    <img id="matias" class="layer fore matias" alt="">
+    <div class="titleLayer">EL TEOREMA DEL MORFI<div class="subtitle">Más que un libro</div></div>
+    <button class="enter" id="enter" aria-label="Entrar"><span class="sign">ENTRAR</span></button>
+  </div></div>
+  <button id="soundHint">Tocá para comenzar</button>
+  <audio id="music" loop preload="auto"></audio>
+</main>
+<script>
+const raw='https://raw.githubusercontent.com/Trotabares1978/El-Teorema-del-Morfi/web/';
+const introParts=[
+'app/src/main/assets/morfi_b64/part00.txt',
+'app/src/main/assets/morfi_b64/part01.txt',
+'app/src/main/assets/morfi_b64/part02.txt'
+];
+const bgParts=[
+'app/src/main/assets/morfi_background_b64/part00.txt',
+'app/src/main/assets/morfi_background_b64/part01.txt'
+];
+async function b64(parts){
+  const r=await Promise.all(parts.map(p=>fetch(raw+p).then(x=>x.text())));
+  return r.join('').replace(/\s/g,'');
+}
+async function boot(){
+  const [intro64,bg64]=await Promise.all([b64(introParts),b64(bgParts)]);
+  const introURL='data:image/jpeg;base64,'+intro64;
+  const bgURL='data:image/webp;base64,'+bg64;
+  document.getElementById('bg').src=bgURL;
+  for(const id of ['path','places','matias']) document.getElementById(id).src=introURL;
+  document.getElementById('music').src=raw+'app/src/main/res/raw/el_teorema_del_morfi.mp3';
+  requestAnimationFrame(()=>document.getElementById('art').classList.add('ready'));
+}
+const hint=document.getElementById('soundHint'), music=document.getElementById('music');
+function startMusic(){
+  music.volume=.55;
+  music.play().catch(()=>{});
+  hint.classList.add('hidden');
+}
+document.addEventListener('pointerdown',startMusic,{once:true});
+document.getElementById('enter').addEventListener('click',()=>{
+  startMusic();
+  document.getElementById('art').style.transition='opacity .55s ease,transform .55s ease';
+  document.getElementById('art').style.opacity='0';
+  document.getElementById('art').style.transform='scale(1.025)';
+  setTimeout(()=>location.href='menu.html',560);
+});
+boot().catch(err=>console.error(err));
+</script>
+</body>
+</html>
