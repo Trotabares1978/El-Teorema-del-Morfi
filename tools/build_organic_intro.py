@@ -32,3 +32,49 @@ save("enter",roi(105,675,415,768,1.1))
 bg.save(out/"background.png",optimize=True)
 
 # organic intro build trigger
+
+html_out = r'''<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>El Teorema del Morfi</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f7f1e5}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.art{position:relative;width:min(100vw,66.6667vh);height:min(150vh,100vh);overflow:hidden;background:#f7f1e5}
+.layer{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:0}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes softMat{from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+.path{animation:fade 2.4s .2s ease-out forwards}
+.astillero{animation:fade 1.1s 2.1s ease-out forwards}
+.pizzeria{animation:fade 1.1s 2.45s ease-out forwards}
+.escuela{animation:fade 1.1s 2.8s ease-out forwards}
+.clinica{animation:fade 1.1s 3.15s ease-out forwards}
+.title{animation:fade 1s 3.8s ease-out forwards}
+.matias{animation:softMat 1.5s 4.65s ease-out forwards}
+.enter{animation:fade 1s 6s ease-out forwards}
+.enter{cursor:pointer}
+.soundHint{position:absolute;z-index:20;left:50%;bottom:18px;transform:translateX(-50%);padding:9px 14px;border:1px solid #fff8;border-radius:12px;background:#fff9;color:#3d2d22;font:700 13px Georgia,serif}
+.off{display:none}
+</style></head><body>
+<div class="scene"><div class="art" id="art">
+<img class="layer" src="./app/src/main/assets/morfi_intro_layers/background.png">
+<img class="layer path" src="./app/src/main/assets/morfi_intro_layers/path.png">
+<img class="layer astillero" src="./app/src/main/assets/morfi_intro_layers/astillero.png">
+<img class="layer pizzeria" src="./app/src/main/assets/morfi_intro_layers/pizzeria.png">
+<img class="layer escuela" src="./app/src/main/assets/morfi_intro_layers/escuela.png">
+<img class="layer clinica" src="./app/src/main/assets/morfi_intro_layers/clinica.png">
+<img class="layer title" src="./app/src/main/assets/morfi_intro_layers/title.png">
+<img class="layer matias" src="./app/src/main/assets/morfi_intro_layers/matias.png">
+<img class="layer enter" id="enter" src="./app/src/main/assets/morfi_intro_layers/enter.png">
+</div></div>
+<button class="soundHint" id="hint">Tocá una vez para activar la música</button>
+<audio id="music" loop src="./app/src/main/res/raw/el_teorema_del_morfi.mp3"></audio>
+<script>
+const music=document.getElementById('music'),hint=document.getElementById('hint'),enter=document.getElementById('enter');
+let started=false;
+function sound(){if(started)return;music.volume=.55;music.play().then(()=>{started=true;hint.classList.add('off')}).catch(()=>{});}
+window.addEventListener('load',()=>{music.volume=.55;music.play().then(()=>{started=true;hint.classList.add('off')}).catch(()=>{});});
+document.addEventListener('pointerdown',sound,{once:true});
+document.addEventListener('touchstart',sound,{once:true,passive:true});
+enter.addEventListener('click',()=>{document.getElementById('art').style.transition='opacity .6s';document.getElementById('art').style.opacity='0';setTimeout(()=>location.href='menu.html',620);});
+</script></body></html>'''
+(ROOT/"index.html").write_text(html_out,encoding="utf-8")
