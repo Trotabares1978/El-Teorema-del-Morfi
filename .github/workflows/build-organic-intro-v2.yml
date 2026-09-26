@@ -26,3 +26,5 @@ jobs:
           git add index.html app/src/main/assets/morfi_intro_layers
           git diff --cached --quiet || git commit -m "Construir intro orgánica por capas [organic-intro]"
           git push
+
+# trigger organic build
